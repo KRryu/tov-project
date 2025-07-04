@@ -1,0 +1,28 @@
+# === Node / React ===
+node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+env/
+# Pipenv / Poetry
+Pipfile.lock
+poetry.lock
+
+# === 환경 변수 ===
+.env*
+*.env
+
+# === 빌드 결과 ===
+dist/
+build/
+coverage/
+*.egg-info/
+
+# === IDE / OS ===
+.vscode/
+.DS_Store
+Thumbs.db
