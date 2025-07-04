@@ -1,0 +1,139 @@
+# 비자 변경 가능 경로
+CHANGE_PATHS:
+  # D-2 유학생 비자에서
+  D-2:
+    allowed:
+      - E-7  # 특정활동
+      - E-3  # 연구
+      - D-10 # 구직
+      - F-2  # 거주
+    
+    conditions:
+      E-7:
+        education: BACHELOR
+        job_offer: true
+        major_relevance: true
+        salary: GNI_80  # 1인당 국민총소득 80% 이상
+        difficulty: MEDIUM
+        success_rate: 70
+        processing_days: 30
+        
+      E-3:
+        education: MASTERS
+        research_position: true
+        institution_type: RESEARCH
+        difficulty: LOW
+        success_rate: 85
+        
+      D-10:
+        education: BACHELOR
+        gpa: 3.0
+        graduation_recent: 6  # 6개월 이내 졸업
+        difficulty: LOW
+        success_rate: 90
+        
+      F-2:
+        points: 80
+        stay_years: 3
+        income: GNI_100
+        difficulty: HIGH
+        success_rate: 60
+
+  # D-4 일반연수에서
+  D-4:
+    allowed:
+      - D-2  # 유학
+      - E-2  # 회화지도
+    
+    conditions:
+      D-2:
+        korean_level: 3  # TOPIK 3급
+        university_admission: true
+        difficulty: MEDIUM
+        success_rate: 75
+        
+      E-2:
+        education: BACHELOR
+        native_speaker: true
+        difficulty: HIGH
+        success_rate: 40
+
+  # E-2 회화지도에서
+  E-2:
+    allowed:
+      - E-1  # 교수
+      - E-7  # 특정활동
+      - F-2  # 거주
+      - F-5  # 영주
+    
+    conditions:
+      E-1:
+        education: MASTERS
+        teaching_experience: 3
+        institution_offer: true
+        difficulty: HIGH
+        success_rate: 50
+        
+      E-7:
+        career_change: true
+        new_qualification: true
+        difficulty: MEDIUM
+        success_rate: 60
+        
+      F-2:
+        points: 80
+        stay_years: 5
+        korean_level: 4
+        difficulty: MEDIUM
+        success_rate: 70
+
+  # E-7 특정활동에서
+  E-7:
+    allowed:
+      - E-1  # 교수
+      - E-5  # 전문직업
+      - F-2  # 거주
+      - D-8  # 기업투자
+    
+    conditions:
+      F-2:
+        points: 80
+        stay_years: 3
+        income: GNI_150
+        difficulty: MEDIUM
+        success_rate: 75
+
+  # 변경 불가 경로 (출국 후 재신청 필요)
+  NO_DIRECT_CHANGE:
+    C-3:  # 단기방문
+      reason: 단기 비자는 장기 비자로 직접 변경 불가
+      alternative: 출국 후 재신청
+      
+    B-1:  # 사증면제
+      reason: 무비자는 다른 비자로 변경 불가
+      alternative: 출국 후 재신청
+
+# 특별 변경 경로 (조건부)
+SPECIAL_PATHS:
+  # 난민 신청자
+  G-1:
+    to_allowed:
+      - F-2  # 난민 인정 시
+    special_condition: REFUGEE_RECOGNITION
+    
+  # 동포
+  F-4:
+    to_allowed:
+      - F-5  # 영주
+    special_condition: 
+      stay_years: 5
+      korean_ethnicity: true
+
+# 변경 신청 시 공통 요구사항
+COMMON_CHANGE_REQUIREMENTS:
+  current_visa_validity: 30  # 현재 비자 잔여 30일 이상
+  no_violations: true
+  change_fee: 130000  # 변경 수수료
+  processing_days:
+    normal: 14
+    complex: 30

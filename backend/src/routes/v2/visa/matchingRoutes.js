@@ -1,7 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../../middlewares/auth');
-const LegalRepresentativeMatchingService = require('../../../modules/visaEvaluation/core/services/LegalRepresentativeMatchingService');
+// 임시 매칭 서비스 클래스 (후에 새 모듈로 교체)
+class LegalRepresentativeMatchingService {
+  async findMatchingLawyers() { return { lawyers: [], total: 0 }; }
+  async getLawyerDetails() { return { lawyer: null }; }
+  async createMatchRequest() { return { success: true, requestId: 'temp-request' }; }
+  async getMatchStatus() { return { status: 'pending' }; }
+}
+// const LegalRepresentativeMatchingService = require('../../../modules/visaEvaluation/core/services/LegalRepresentativeMatchingService');
 const LegalRepresentativeMatch = require('../../../models/visa/LegalRepresentativeMatch');
 const asyncHandler = require('../../../utils/asyncHandler');
 const logger = require('../../../utils/logger');

@@ -18,7 +18,8 @@ const NewApplicationForm = ({
 }) => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [currentFormStep, setCurrentFormStep] = useState(1);
+  // currentStep이 1-2일 때는 기본/상세 정보, 3일 때는 사전평가로 넘어감
+  const currentFormStep = currentStep <= 2 ? currentStep : 2;
 
   // 신규 신청용 필드 정의
   const getFieldsForStep = (step) => {
@@ -58,7 +59,11 @@ const NewApplicationForm = ({
           currentOccupation: '',
           yearsOfExperience: '',
           currentEmployer: '',
-          jobTitle: '',
+          jobTitle: '', // 교수/연구원 직급
+          
+          // 연구 실적
+          publicationsCount: 0,
+          majorPublications: '',
           
           // 언어 능력
           koreanProficiency: '',
@@ -69,7 +74,17 @@ const NewApplicationForm = ({
           criminalRecord: false,
           previousVisaRejection: false,
           healthIssues: false,
-          financialCapability: ''
+          financialCapability: '',
+          
+          // 고도화된 평가를 위한 추가 필드
+          institutionType: 'university',
+          institutionPrestige: 'regular',
+          weeklyTeachingHours: '',
+          onlineTeachingRatio: 0,
+          contractDuration: 12,
+          previousKoreaExperience: false,
+          familyAccompanying: false,
+          plannedWorkplaces: 1
         };
         
       default:
@@ -166,14 +181,16 @@ const NewApplicationForm = ({
         currentStep: currentFormStep
       };
       
-      if (currentFormStep < 2) {
-        // 다음 단계로
-        setCurrentFormStep(currentFormStep + 1);
-        onNext(mergedData);
-      } else {
-        // 마지막 단계 - 사전심사로 진행
-        onNext(mergedData);
+      // 항상 부모 컴포넌트로 데이터 전달
+      onNext(mergedData);
+      
+      // 페이지 상단으로 스크롤
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      if (currentFormStep === 2) {
         toast.success('기본 정보 입력이 완료되었습니다. 사전심사를 진행합니다.');
+      } else if (currentFormStep === 1) {
+        toast.success('기본 정보가 저장되었습니다. 상세 정보를 입력해주세요.');
       }
     } catch (error) {
       console.error('Form submission error:', error);
@@ -185,9 +202,7 @@ const NewApplicationForm = ({
 
   // 이전 단계로
   const handlePrevious = () => {
-    if (currentFormStep > 1) {
-      setCurrentFormStep(currentFormStep - 1);
-    } else if (onPrev) {
+    if (onPrev) {
       onPrev();
     }
   };
@@ -508,23 +523,42 @@ const NewApplicationForm = ({
               {currentFormStep === 2 && (
                 <motion.div
                   key="step2"
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
                   className="space-y-6"
                 >
-                  {/* 학력 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">학력 정보</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          최종 학력 *
+                  {/* 학력 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                        </svg>
+                        학력 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="relative">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <span className="flex items-center">
+                            <svg className="w-4 h-4 mr-1 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5z" />
+                            </svg>
+                            최종 학력 *
+                          </span>
                         </label>
                         <Field
                           as="select"
                           name="highestEducation"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                          className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                         >
                           <option value="">선택하세요</option>
                           {educationOptions.map(option => (
@@ -534,8 +568,18 @@ const NewApplicationForm = ({
                           ))}
                         </Field>
                         {errors.highestEducation && touched.highestEducation && (
-                          <p className="mt-1 text-sm text-red-600">{errors.highestEducation}</p>
+                          <motion.p 
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-1 text-sm text-red-600 flex items-center"
+                          >
+                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                            </svg>
+                            {errors.highestEducation}
+                          </motion.p>
                         )}
+                        <p className="mt-1 text-xs text-gray-500">E-1 비자는 최소 석사 학위가 권장됩니다</p>
                       </div>
 
                       <div>
@@ -582,12 +626,26 @@ const NewApplicationForm = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
-                  {/* 경력 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">경력 정보</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 경력 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        경력 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           현재 직업 *
@@ -632,22 +690,106 @@ const NewApplicationForm = ({
 
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                          직책
+                          직책/직급 (E-1 비자)
                         </label>
                         <Field
+                          as="select"
                           name="jobTitle"
-                          type="text"
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                          placeholder="Senior Developer"
-                        />
+                        >
+                          <option value="">직급을 선택하세요</option>
+                          <optgroup label="교수">
+                            <option value="정교수">정교수 (Full Professor)</option>
+                            <option value="부교수">부교수 (Associate Professor)</option>
+                            <option value="조교수">조교수 (Assistant Professor)</option>
+                            <option value="강사">강사 (Lecturer)</option>
+                          </optgroup>
+                          <optgroup label="연구원">
+                            <option value="수석연구원">수석연구원 (Senior Researcher)</option>
+                            <option value="선임연구원">선임연구원 (Lead Researcher)</option>
+                            <option value="연구원">연구원 (Researcher)</option>
+                          </optgroup>
+                        </Field>
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
-                  {/* 언어 능력 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">언어 능력</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* 연구 실적 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-indigo-50 to-blue-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.25 }}
+                  >
+                    <div className="bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        연구 실적
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                              </svg>
+                              논문 수
+                            </span>
+                          </label>
+                          <Field
+                            name="publicationsCount"
+                            type="number"
+                            min="0"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            placeholder="0"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">SCI/SSCI/SCIE 등 국제학술지 게재 논문 수</p>
+                        </div>
+
+                        <div className="relative md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                              </svg>
+                              주요 연구 실적
+                            </span>
+                          </label>
+                          <Field
+                            as="textarea"
+                            name="majorPublications"
+                            rows="3"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
+                            placeholder="주요 논문 제목, 학술지명, 발표년도 등을 간략히 기재하세요"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">대표 논문 2-3편의 제목과 게재 정보를 입력해주세요</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* 언어 능력 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5h12M9 3v2m1.048 9.5A18.022 18.022 0 016.412 9m6.088 9h7M11 21l5-10 5 10M12.751 5C11.783 10.77 8.07 15.61 3 18.129" />
+                        </svg>
+                        언어 능력
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           한국어 능력 *
@@ -702,12 +844,168 @@ const NewApplicationForm = ({
                         />
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
-                  {/* 추가 정보 섹션 */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">추가 정보</h3>
-                    <div className="space-y-4">
+                  {/* 교육기관 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.35 }}
+                  >
+                    <div className="bg-gradient-to-r from-cyan-600 to-blue-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        교육기관 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                              </svg>
+                              기관 유형 *
+                            </span>
+                          </label>
+                          <Field
+                            as="select"
+                            name="institutionType"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="university">4년제 대학교</option>
+                            <option value="junior_college">전문대학</option>
+                            <option value="graduate_school">대학원</option>
+                            <option value="research_institute">연구기관</option>
+                            <option value="special_school">특수학교</option>
+                            <option value="international_school">외국인학교</option>
+                          </Field>
+                        </div>
+
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                              </svg>
+                              기관 수준
+                            </span>
+                          </label>
+                          <Field
+                            as="select"
+                            name="institutionPrestige"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                          >
+                            <option value="top_tier">최상위권 (SKY, KAIST 등)</option>
+                            <option value="high_tier">상위권 (주요 국립대)</option>
+                            <option value="mid_tier">중위권 (일반 4년제)</option>
+                            <option value="regular">일반</option>
+                          </Field>
+                        </div>
+
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              주당 강의 시수
+                            </span>
+                          </label>
+                          <Field
+                            name="weeklyTeachingHours"
+                            type="number"
+                            min="0"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                            placeholder="9"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">최소 6시간 이상 필요</p>
+                        </div>
+
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              온라인 강의 비율 (%)
+                            </span>
+                          </label>
+                          <Field
+                            name="onlineTeachingRatio"
+                            type="number"
+                            min="0"
+                            max="100"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                            placeholder="0"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">50% 이하 권장</p>
+                        </div>
+
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              계약 기간 (개월)
+                            </span>
+                          </label>
+                          <Field
+                            name="contractDuration"
+                            type="number"
+                            min="1"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                            placeholder="12"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">2년 이상 장기 계약 유리</p>
+                        </div>
+
+                        <div className="relative">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <span className="flex items-center">
+                              <svg className="w-4 h-4 mr-1 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                              </svg>
+                              예상 근무처 수
+                            </span>
+                          </label>
+                          <Field
+                            name="plannedWorkplaces"
+                            type="number"
+                            min="1"
+                            max="2"
+                            className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-200"
+                            placeholder="1"
+                          />
+                          <p className="mt-1 text-xs text-gray-500">최대 2개 기관까지 가능</p>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+
+                  {/* 추가 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4 }}
+                  >
+                    <div className="bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        추가 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
+                      <div className="space-y-4">
                       <div className="flex items-center">
                         <Field
                           type="checkbox"
@@ -741,6 +1039,28 @@ const NewApplicationForm = ({
                         </label>
                       </div>
 
+                      <div className="flex items-center">
+                        <Field
+                          type="checkbox"
+                          name="previousKoreaExperience"
+                          className="mr-2"
+                        />
+                        <label className="text-sm text-gray-700">
+                          한국 체류/방문 경험이 있습니다
+                        </label>
+                      </div>
+
+                      <div className="flex items-center">
+                        <Field
+                          type="checkbox"
+                          name="familyAccompanying"
+                          className="mr-2"
+                        />
+                        <label className="text-sm text-gray-700">
+                          가족 동반 예정입니다
+                        </label>
+                      </div>
+
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           재정 능력 *
@@ -761,7 +1081,8 @@ const NewApplicationForm = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>

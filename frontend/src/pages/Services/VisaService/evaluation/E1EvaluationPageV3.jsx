@@ -7,7 +7,7 @@ import * as Yup from 'yup';
 
 // 새로운 통합 서비스 import
 import visaServiceV3 from '../../../../api/services/visaServiceV3';
-import { useAuth } from '../../../../hooks/useAuth';
+import useAuth from '../../../../hooks/useAuth';
 
 // UI 컴포넌트들
 import ProgressStepper from './components/ProgressStepper';

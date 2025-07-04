@@ -30,7 +30,7 @@ export const SERVICE_TRACKS = [
       "체류자격 변경대행"
     ],
     imagePath: "/assets/images/services/visa.jpg",
-    link: "/services/visa/evaluation/e1"
+    link: "/services/visa"
   },
   {
     id: "korean",

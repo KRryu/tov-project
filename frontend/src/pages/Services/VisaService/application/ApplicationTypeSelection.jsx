@@ -12,6 +12,8 @@ const ApplicationTypeSelection = () => {
   const [visaTypes, setVisaTypes] = useState([]);
   const [selectedVisaType, setSelectedVisaType] = useState('');
   const [selectedApplicationType, setSelectedApplicationType] = useState('');
+  const [currentVisaType, setCurrentVisaType] = useState(''); // 변경/연장 시 현재 비자
+  const [targetVisaType, setTargetVisaType] = useState(''); // 변경 시 목표 비자
 
   // 지원되는 비자 타입 로드
   useEffect(() => {
@@ -77,24 +79,49 @@ const ApplicationTypeSelection = () => {
   };
 
   const handleProceed = () => {
-    if (!selectedVisaType) {
-      setError('비자 타입을 선택해주세요.');
-      return;
-    }
     if (!selectedApplicationType) {
       setError('신청 유형을 선택해주세요.');
       return;
     }
 
-    // 선택한 정보 저장
-    sessionStorage.setItem('applicationData', JSON.stringify({
-      visaType: selectedVisaType,
+    let finalVisaType = '';
+    let applicationData = {
       applicationType: selectedApplicationType,
       timestamp: new Date().toISOString()
-    }));
+    };
+
+    // 신청 유형별 검증
+    if (selectedApplicationType === 'NEW') {
+      if (!selectedVisaType) {
+        setError('신청할 비자 타입을 선택해주세요.');
+        return;
+      }
+      finalVisaType = selectedVisaType;
+      applicationData.visaType = selectedVisaType;
+    } else if (selectedApplicationType === 'EXTENSION') {
+      if (!currentVisaType) {
+        setError('현재 비자 타입을 선택해주세요.');
+        return;
+      }
+      finalVisaType = currentVisaType;
+      applicationData.visaType = currentVisaType;
+      applicationData.currentVisaType = currentVisaType;
+    } else if (selectedApplicationType === 'CHANGE') {
+      if (!currentVisaType || !targetVisaType) {
+        setError('현재 비자와 변경하고자 하는 비자를 모두 선택해주세요.');
+        return;
+      }
+      finalVisaType = targetVisaType;
+      applicationData.visaType = targetVisaType;
+      applicationData.currentVisaType = currentVisaType;
+      applicationData.targetVisaType = targetVisaType;
+    }
+
+    // 선택한 정보 저장
+    sessionStorage.setItem('applicationData', JSON.stringify(applicationData));
 
     // 다음 단계로 이동
-    navigate(`/services/visa/application/form?type=${selectedApplicationType}&visa=${selectedVisaType}`);
+    navigate(`/services/visa/application/form?type=${selectedApplicationType}&visa=${finalVisaType}`);
   };
 
   if (loading) {
@@ -115,9 +142,9 @@ const ApplicationTypeSelection = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-3xl font-bold text-gray-900">비자 신청 유형 선택</h1>
+          <h1 className="text-3xl font-bold text-gray-900">비자 신청 시작하기</h1>
           <p className="mt-4 text-lg text-gray-600">
-            신청하려는 비자 타입과 신청 유형을 선택해주세요
+            신청 유형을 선택하고 비자 정보를 입력해주세요
           </p>
         </motion.div>
 
@@ -131,7 +158,7 @@ const ApplicationTypeSelection = () => {
           </motion.div>
         )}
 
-        {/* Step 1: 비자 타입 선택 */}
+        {/* Step 1: 신청 유형 선택 */}
         <motion.div 
           className="mb-12"
           initial={{ opacity: 0, y: 20 }}
@@ -139,92 +166,195 @@ const ApplicationTypeSelection = () => {
           transition={{ duration: 0.5, delay: 0.1 }}
         >
           <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            1단계: 비자 타입 선택
-          </h2>
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <select
-              value={selectedVisaType}
-              onChange={(e) => setSelectedVisaType(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-            >
-              <option value="">비자 타입을 선택하세요</option>
-              {visaTypes.map((visa) => (
-                <option key={visa.code} value={visa.code}>
-                  {visa.code} - {visa.name}
-                </option>
-              ))}
-            </select>
-            {selectedVisaType && (
-              <motion.div 
-                className="mt-4 p-4 bg-gray-50 rounded-lg"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
-                <p className="text-sm text-gray-600">
-                  {visaTypes.find(v => v.code === selectedVisaType)?.description}
-                </p>
-              </motion.div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Step 2: 신청 유형 선택 */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-        >
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
-            2단계: 신청 유형 선택
+            1단계: 신청 유형을 선택하세요
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {applicationTypes.map((type) => (
               <motion.div
                 key={type.id}
-                className={`bg-white rounded-lg shadow-sm border-2 cursor-pointer transition-all ${
-                  selectedApplicationType === type.id
-                    ? `border-${type.color}-500 shadow-lg`
-                    : 'border-gray-200 hover:shadow-md'
-                }`}
-                onClick={() => handleApplicationTypeSelect(type.id)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
+                onClick={() => handleApplicationTypeSelect(type.id)}
+                className={`cursor-pointer rounded-lg p-6 border-2 transition-all ${
+                  selectedApplicationType === type.id
+                    ? `border-${type.color}-500 bg-${type.color}-50`
+                    : 'border-gray-200 bg-white hover:border-gray-300'
+                }`}
               >
-                <div className="p-6">
-                  <div className={`text-${type.color}-600 mb-4`}>
-                    {type.icon}
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                    {type.title}
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    {type.description}
-                  </p>
-                  <ul className="space-y-2">
-                    {type.features.map((feature, index) => (
-                      <li key={index} className="flex items-start">
-                        <svg className={`w-5 h-5 text-${type.color}-500 mr-2 flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                        <span className="text-sm text-gray-600">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
+                <div className={`flex justify-center mb-4 text-${type.color}-500`}>
+                  {type.icon}
                 </div>
-                {selectedApplicationType === type.id && (
-                  <div className={`bg-${type.color}-50 px-6 py-3 border-t border-${type.color}-100`}>
-                    <span className={`text-sm font-medium text-${type.color}-700`}>
-                      선택됨
-                    </span>
-                  </div>
-                )}
+                <h3 className="text-lg font-semibold text-gray-900 text-center mb-2">
+                  {type.title}
+                </h3>
+                <p className="text-sm text-gray-600 text-center mb-4">
+                  {type.description}
+                </p>
+                <ul className="space-y-1">
+                  {type.features.map((feature, idx) => (
+                    <li key={idx} className="text-xs text-gray-500 flex items-start">
+                      <span className="mr-1">•</span>
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
               </motion.div>
             ))}
           </div>
         </motion.div>
 
-        {/* 특별 안내 - 변경 신청 선택시 */}
-        {selectedApplicationType === 'CHANGE' && selectedVisaType && (
+        {/* Step 2: 비자 타입 선택 (신청 유형에 따라 다르게 표시) */}
+        {selectedApplicationType && (
+          <motion.div 
+            className="mb-12"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+              2단계: 비자 정보 입력
+            </h2>
+
+            {/* 신규 신청 */}
+            {selectedApplicationType === 'NEW' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  신청하고자 하는 비자 타입을 선택하세요
+                </label>
+                <select
+                  value={selectedVisaType}
+                  onChange={(e) => setSelectedVisaType(e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">비자 타입을 선택하세요</option>
+                  {visaTypes.map((visa) => (
+                    <option key={visa.code} value={visa.code}>
+                      {visa.code} - {visa.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedVisaType && (
+                  <motion.div 
+                    className="mt-4 p-4 bg-gray-50 rounded-lg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <p className="text-sm text-gray-600">
+                      {visaTypes.find(v => v.code === selectedVisaType)?.description}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {/* 연장 신청 */}
+            {selectedApplicationType === 'EXTENSION' && (
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  현재 보유하고 있는 비자 타입을 선택하세요
+                </label>
+                <select
+                  value={currentVisaType}
+                  onChange={(e) => {
+                    setCurrentVisaType(e.target.value);
+                    setSelectedVisaType(e.target.value); // 연장은 동일 비자
+                  }}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                >
+                  <option value="">현재 비자 타입을 선택하세요</option>
+                  {visaTypes.map((visa) => (
+                    <option key={visa.code} value={visa.code}>
+                      {visa.code} - {visa.name}
+                    </option>
+                  ))}
+                </select>
+                {currentVisaType && (
+                  <motion.div 
+                    className="mt-4 p-4 bg-green-50 rounded-lg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                  >
+                    <p className="text-sm text-green-700 font-medium mb-2">
+                      ✓ {currentVisaType} 비자 연장을 신청합니다
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {visaTypes.find(v => v.code === currentVisaType)?.description}
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+            )}
+
+            {/* 변경 신청 */}
+            {selectedApplicationType === 'CHANGE' && (
+              <div className="space-y-6">
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    현재 보유하고 있는 비자 타입을 선택하세요
+                  </label>
+                  <select
+                    value={currentVisaType}
+                    onChange={(e) => setCurrentVisaType(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  >
+                    <option value="">현재 비자 타입을 선택하세요</option>
+                    {visaTypes.map((visa) => (
+                      <option key={visa.code} value={visa.code}>
+                        {visa.code} - {visa.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {currentVisaType && (
+                  <motion.div
+                    className="bg-white rounded-lg shadow-sm p-6"
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                  >
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      변경하고자 하는 비자 타입을 선택하세요
+                    </label>
+                    <select
+                      value={targetVisaType}
+                      onChange={(e) => {
+                        setTargetVisaType(e.target.value);
+                        setSelectedVisaType(e.target.value); // 변경 시 목표 비자
+                      }}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                    >
+                      <option value="">목표 비자 타입을 선택하세요</option>
+                      {visaTypes
+                        .filter(visa => visa.code !== currentVisaType)
+                        .map((visa) => (
+                          <option key={visa.code} value={visa.code}>
+                            {visa.code} - {visa.name}
+                          </option>
+                        ))}
+                    </select>
+                    {targetVisaType && (
+                      <motion.div 
+                        className="mt-4 p-4 bg-purple-50 rounded-lg"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                      >
+                        <p className="text-sm text-purple-700 font-medium mb-2">
+                          ✓ {currentVisaType} → {targetVisaType} 비자 변경을 신청합니다
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          {visaTypes.find(v => v.code === targetVisaType)?.description}
+                        </p>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* 특별 안내 */}
+        {selectedApplicationType === 'CHANGE' && currentVisaType && targetVisaType && (
           <motion.div
             className="mt-8 bg-amber-50 border border-amber-200 rounded-lg p-6"
             initial={{ opacity: 0 }}
@@ -237,8 +367,29 @@ const ApplicationTypeSelection = () => {
               <div>
                 <h4 className="text-lg font-medium text-amber-900">변경 신청 안내</h4>
                 <p className="mt-2 text-amber-700">
-                  현재 비자에서 {selectedVisaType}로 변경 가능 여부를 먼저 확인해드립니다.
+                  {currentVisaType}에서 {targetVisaType}로 변경 가능 여부를 먼저 확인해드립니다.
                   변경이 불가능한 경우 대안을 제시해드립니다.
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {selectedApplicationType === 'EXTENSION' && currentVisaType && (
+          <motion.div
+            className="mt-8 bg-green-50 border border-green-200 rounded-lg p-6"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+          >
+            <div className="flex">
+              <svg className="w-6 h-6 text-green-600 mr-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h4 className="text-lg font-medium text-green-900">연장 신청 안내</h4>
+                <p className="mt-2 text-green-700">
+                  {currentVisaType} 비자 연장을 위한 활동 실적과 요건을 검토합니다.
+                  연장이 어려운 경우 대안을 제시해드립니다.
                 </p>
               </div>
             </div>
@@ -260,9 +411,16 @@ const ApplicationTypeSelection = () => {
           </button>
           <button
             onClick={handleProceed}
-            disabled={!selectedVisaType || !selectedApplicationType}
+            disabled={
+              !selectedApplicationType || 
+              (selectedApplicationType === 'NEW' && !selectedVisaType) ||
+              (selectedApplicationType === 'EXTENSION' && !currentVisaType) ||
+              (selectedApplicationType === 'CHANGE' && (!currentVisaType || !targetVisaType))
+            }
             className={`px-8 py-3 rounded-lg font-medium transition-all ${
-              selectedVisaType && selectedApplicationType
+              (selectedApplicationType === 'NEW' && selectedVisaType) ||
+              (selectedApplicationType === 'EXTENSION' && currentVisaType) ||
+              (selectedApplicationType === 'CHANGE' && currentVisaType && targetVisaType)
                 ? 'bg-indigo-600 text-white hover:bg-indigo-700'
                 : 'bg-gray-300 text-gray-500 cursor-not-allowed'
             }`}

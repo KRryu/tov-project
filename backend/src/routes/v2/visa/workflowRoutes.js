@@ -1,7 +1,15 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../../middlewares/auth');
-const { getVisaServiceWorkflow } = require('../../../modules/visaEvaluation/core/services/VisaServiceWorkflow');
+// 임시 워크플로우 서비스 (후에 새 모듈로 교체)
+const getVisaServiceWorkflow = () => {
+  return {
+    initializeWorkflow: () => ({ success: true, workflowId: 'temp-workflow' }),
+    getWorkflowStatus: () => ({ status: 'active', steps: [] }),
+    processNextStep: () => ({ success: true, nextStep: 'complete' })
+  };
+};
+// const { getVisaServiceWorkflow } = require('../../../modules/visaEvaluation/core/services/VisaServiceWorkflow');
 const VisaServiceOrder = require('../../../models/visa/VisaServiceOrder');
 const asyncHandler = require('../../../utils/asyncHandler');
 const logger = require('../../../utils/logger');

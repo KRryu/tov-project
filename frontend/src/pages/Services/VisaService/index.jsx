@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useDispatch } from 'react-redux';
 import { setReturnPath } from '../../../redux/slices/authSlice';
-import { useAuth } from '../../../hooks/useAuth';
+import useAuth from '../../../hooks/useAuth';
 import ProcessOverviewSection from './sections/ProcessOverviewSection';
 import CTASection from './sections/CTASection';
 
@@ -168,7 +168,7 @@ const VisaService = () => {
                   <div>• 상세한 개선 로드맵 제공</div>
                 </div>
                 <button
-                  onClick={() => navigate('/services/visa/evaluation/e1')}
+                  onClick={() => navigate('/services/visa/evaluation/e1-v3')}
                   className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   E-1 평가 시작

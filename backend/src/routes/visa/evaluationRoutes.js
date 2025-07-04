@@ -10,6 +10,7 @@
  */
 const express = require('express');
 const router = express.Router();
+// 비자 평가 컨트롤러
 const visaEvaluationController = require('../../controllers/visa/visaEvaluationController');
 const { protect: requireAuth } = require('../../middlewares/auth');
 const logger = require('../../utils/logger');

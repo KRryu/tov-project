@@ -66,9 +66,10 @@ const visaRoutesV1 = require('./routes/visa');
 app.use('/api/visa', visaRoutesV1);
 app.use('/api/v1/visa', visaRoutesV1); // 명시적 V1 경로
 
-// V2 API (향상된 기능)
+// V2 API (새로운 통합 시스템)
 const visaRoutesV2 = require('./routes/v2/visa');
 app.use('/api/v2/visa', visaRoutesV2);
+logger.info('✅ 비자 API V2 라우트 설정 완료');
 
 // 커뮤니티
 const communityRoutes = require('./routes/community/communityRoutes');

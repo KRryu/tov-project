@@ -1,0 +1,147 @@
+# 공통 비자 규칙
+COMMON_RULES:
+  # 일반 자격 요건
+  general_eligibility:
+    age:
+      minimum: 18  # 특별한 경우 제외
+      maximum: null  # 비자별 상이
+      
+    passport:
+      validity_months: 6
+      blank_pages: 2
+      
+    health:
+      infectious_diseases: PROHIBITED
+      mental_health: STABLE
+      drug_addiction: PROHIBITED
+      
+    criminal:
+      serious_crimes: PROHIBITED
+      immigration_violations: PROHIBITED
+      deportation_history: 
+        years: 5  # 5년간 입국 금지
+        
+    financial:
+      self_sufficiency: REQUIRED
+      sponsor_allowed: true
+
+  # 체류 규칙
+  stay_rules:
+    address_registration:
+      required: true
+      deadline_days: 90
+      change_report_days: 14
+      
+    departure_report:
+      reentry_permit:
+        single: 
+          validity: 1  # 년
+          fee: 30000
+        multiple:
+          validity: 2  # 년
+          fee: 50000
+          
+    activity_restriction:
+      outside_status: PROHIBITED
+      part_time:
+        student_allowed: true  # 조건부
+        others_allowed: false
+        
+    extension_application:
+      advance_days_min: 30
+      advance_days_max: 120
+      late_penalty: true
+
+  # 위반 시 제재
+  violation_penalties:
+    OVERSTAY:
+      fine_per_day: 30000
+      max_fine: 20000000
+      detention_possible: true
+      future_entry_ban:
+        under_30_days: WARNING
+        over_30_days: 1  # 년
+        over_90_days: 3  # 년
+        
+    ILLEGAL_EMPLOYMENT:
+      fine: 10000000
+      deportation: POSSIBLE
+      entry_ban: 5  # 년
+      
+    FALSE_INFORMATION:
+      application_void: true
+      fine: 5000000
+      entry_ban: 3  # 년
+      
+    ADDRESS_UNREPORTED:
+      fine: 1000000
+      warning: FIRST_TIME
+
+# 평가 규칙
+EVALUATION_RULES:
+  score_calculation:
+    method: WEIGHTED_AVERAGE
+    rounding: NEAREST_INTEGER
+    
+  document_verification:
+    authenticity_check: REQUIRED
+    expiry_check: REQUIRED
+    translation_check: REQUIRED
+    
+  eligibility_check:
+    all_requirements: MUST_MEET
+    conditional_allowed: true
+    
+  recommendation_generation:
+    threshold_near_pass: 10  # 점수 차이
+    max_recommendations: 5
+
+# 특별 규칙
+SPECIAL_RULES:
+  fast_track:
+    conditions:
+      - GOVERNMENT_INVITATION
+      - INVESTMENT_LARGE_SCALE
+      - SPECIAL_TALENT
+    processing_days: 3
+    
+  group_application:
+    minimum_size: 5
+    same_employer: REQUIRED
+    discount_rate: 0.2
+    
+  family_accompaniment:
+    eligible_visas:
+      - E-1
+      - E-2
+      - E-3
+      - E-5
+      - E-7
+      - D-8
+    spouse_visa: F-3
+    children_visa: F-3
+    age_limit_children: 20
+
+# 수수료 규칙
+FEE_RULES:
+  application_fee:
+    single_entry:
+      USD: 60
+      KRW: 60000
+    multiple_entry:
+      USD: 90
+      KRW: 90000
+      
+  change_fee:
+    KRW: 130000
+    
+  waiver_conditions:
+    - DIPLOMATIC_PASSPORT
+    - OFFICIAL_PASSPORT
+    - UNDER_18_STUDENT
+    - GOVERNMENT_SCHOLARSHIP
+    
+  refund_policy:
+    application_withdrawn: 0.5  # 50%
+    application_rejected: 0
+    overpayment: 1.0  # 100%

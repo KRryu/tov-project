@@ -1,4 +1,8 @@
-const { evaluateVisa: evaluateVisaModule, getSupportedVisaTypes } = require('../../modules/visaEvaluation');
+// 새로운 V4 모듈 사용
+const VisaModule = require('../../modules/visa');
+
+// 모듈 초기화 플래그
+let moduleInitialized = false;
 const VisaApplication = require('../../models/visa/VisaApplication');
 const logger = require('../../utils/logger');
 
@@ -23,8 +27,20 @@ const visaEvaluationService = {
       const normalized = normalizeVisaType(visaType);
       logger.info(`비자 평가 시작: ${normalized}`);
 
-      // 단일 평가 엔진으로 위임 (types/index.js -> evaluateVisa)
-      const result = evaluateVisaModule(visaType, applicantData);
+      // 모듈 초기화 확인
+      if (!moduleInitialized) {
+        await VisaModule.initialize();
+        moduleInitialized = true;
+      }
+
+      // 새로운 V4 모듈로 평가
+      const evaluation = await VisaModule.evaluate({
+        visaType: normalized,
+        applicationType: applicantData.applicationType || 'NEW',
+        data: applicantData
+      });
+      
+      const result = evaluation.success ? evaluation.result : null;
 
       return {
         success: true,

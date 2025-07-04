@@ -1,0 +1,167 @@
+# 공통 문서 정의
+COMMON_DOCUMENTS:
+  # 신원 관련
+  PASSPORT:
+    name_ko: 여권
+    name_en: Passport
+    type: IDENTITY
+    requirements:
+      - 유효기간 6개월 이상
+      - 사진이 있는 신원정보면
+    format: COPY
+    
+  PHOTO:
+    name_ko: 사진
+    name_en: Photo
+    type: IDENTITY
+    requirements:
+      - 3.5cm x 4.5cm
+      - 흰색 배경
+      - 최근 6개월 이내
+    format: ORIGINAL
+    quantity: 1
+
+  # 신청서류
+  APPLICATION_FORM:
+    name_ko: 비자발급신청서
+    name_en: Visa Application Form
+    type: APPLICATION
+    requirements:
+      - 신청인 서명 필수
+      - 모든 항목 기재
+    format: ORIGINAL
+    
+  # 교육 관련
+  DIPLOMA:
+    name_ko: 학위증명서
+    name_en: Diploma
+    type: EDUCATION
+    requirements:
+      - 아포스티유 또는 영사확인
+    format: ORIGINAL
+    
+  TRANSCRIPT:
+    name_ko: 성적증명서
+    name_en: Transcript
+    type: EDUCATION
+    requirements:
+      - 전 학년 성적 포함
+    format: ORIGINAL
+
+  # 고용 관련
+  EMPLOYMENT_CONTRACT:
+    name_ko: 고용계약서
+    name_en: Employment Contract
+    type: EMPLOYMENT
+    requirements:
+      - 양 당사자 서명
+      - 급여 및 근무조건 명시
+    format: COPY
+    
+  CAREER_CERTIFICATE:
+    name_ko: 경력증명서
+    name_en: Career Certificate
+    type: EMPLOYMENT
+    requirements:
+      - 회사 직인
+      - 근무기간 및 직책 명시
+    format: ORIGINAL
+
+  # 재정 관련
+  BANK_STATEMENT:
+    name_ko: 은행잔고증명서
+    name_en: Bank Statement
+    type: FINANCIAL
+    requirements:
+      - 최근 1개월 이내 발급
+      - 잔고 명시
+    format: ORIGINAL
+    
+  TAX_PAYMENT_CERTIFICATE:
+    name_ko: 납세증명서
+    name_en: Tax Payment Certificate
+    type: FINANCIAL
+    requirements:
+      - 최근 1년간
+    format: ORIGINAL
+
+  # 신원조회
+  CRIMINAL_RECORD:
+    name_ko: 범죄경력증명서
+    name_en: Criminal Record Certificate
+    type: BACKGROUND
+    requirements:
+      - 본국 정부 발급
+      - 아포스티유 필수
+      - 6개월 이내
+    format: ORIGINAL
+    
+  HEALTH_CERTIFICATE:
+    name_ko: 건강진단서
+    name_en: Health Certificate
+    type: HEALTH
+    requirements:
+      - 지정병원 발급
+      - 3개월 이내
+      - 결핵 등 전염병 검사 포함
+    format: ORIGINAL
+
+  # 거주 관련
+  RESIDENCE_CERTIFICATE:
+    name_ko: 거주지증명서
+    name_en: Residence Certificate
+    type: RESIDENCE
+    requirements:
+      - 주민센터 발급
+      - 1개월 이내
+    format: ORIGINAL
+    
+  HOUSING_CONTRACT:
+    name_ko: 주택임대차계약서
+    name_en: Housing Lease Contract
+    type: RESIDENCE
+    format: COPY
+
+  # 가족 관련
+  FAMILY_RELATION_CERTIFICATE:
+    name_ko: 가족관계증명서
+    name_en: Family Relation Certificate
+    type: FAMILY
+    requirements:
+      - 아포스티유 필요 (외국 발급)
+    format: ORIGINAL
+    
+  MARRIAGE_CERTIFICATE:
+    name_ko: 혼인관계증명서
+    name_en: Marriage Certificate
+    type: FAMILY
+    format: ORIGINAL
+
+# 문서 인증 요구사항
+AUTHENTICATION_REQUIREMENTS:
+  apostille_required:
+    - DIPLOMA
+    - CRIMINAL_RECORD
+    - FAMILY_RELATION_CERTIFICATE
+    - MARRIAGE_CERTIFICATE
+    
+  translation_required:
+    from_languages:
+      - chinese
+      - japanese
+      - russian
+      - spanish
+      - other_non_english
+    
+  notarization_required:
+    - EMPLOYMENT_CONTRACT  # 특정 국가
+    - BANK_STATEMENT      # 특정 국가
+
+# 문서 유효기간
+DOCUMENT_VALIDITY:
+  CRIMINAL_RECORD: 6  # 개월
+  HEALTH_CERTIFICATE: 3
+  BANK_STATEMENT: 1
+  TAX_PAYMENT_CERTIFICATE: 1
+  RESIDENCE_CERTIFICATE: 1
+  PHOTO: 6

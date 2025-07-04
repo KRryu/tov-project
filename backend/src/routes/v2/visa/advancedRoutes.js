@@ -10,8 +10,339 @@ const asyncHandler = require('../../../utils/asyncHandler');
 const logger = require('../../../utils/logger');
 const { uploadVisaDocument, handleUploadError } = require('../../../middlewares/uploadMiddleware');
 
-// 새로운 v2 비자 평가 모듈
-const visaEvaluationV2 = require('../../../modules/visaEvaluation/index-v2');
+// 새로운 V4 모듈 사용
+const VisaModule = require('../../../modules/visa');
+let moduleInitialized = false;
+
+// V2 호환성을 위한 래퍼
+const visaEvaluationV2 = {
+  evaluateVisa: async (visaType, data) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    const result = await VisaModule.evaluate({
+      visaType,
+      applicationType: data.applicationType || 'NEW',
+      data
+    });
+    return result.success ? result.result : null;
+  },
+  validateDocuments: async (docs) => ({ valid: true, missing: [] }),
+  analyzeComplexity: async (data) => ({ complexity: 'MEDIUM', factors: [] }),
+  
+  // 지원 비자 타입 목록
+  getSupportedVisaTypes: async () => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    return VisaModule.getSupportedVisaTypes();
+  },
+  
+  // 비자 타입별 상세 정보
+  getVisaTypeFeatures: async (visaType) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    const config = VisaModule.getVisaConfig(visaType);
+    return {
+      code: visaType,
+      name: config?.name || visaType,
+      nameKo: config?.name_ko || config?.name,
+      nameEn: config?.name_en || config?.name,
+      category: config?.category || 'work',
+      description: config?.description || '',
+      applicationTypes: config?.supported_applications || ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: config?.complexity || 'MEDIUM',
+      processingDays: config?.processing_days || { min: 7, max: 30 },
+      requirements: {
+        education: config?.base_requirements?.education,
+        experience: config?.base_requirements?.experience_years,
+        age: config?.base_requirements?.age
+      },
+      features: {
+        onlineApplication: true,
+        documentUpload: true,
+        statusTracking: true,
+        legalRepresentativeMatching: true
+      }
+    };
+  },
+  
+  // 사전심사 수행
+  performPreScreening: async (visaType, applicantData) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    
+    try {
+      const result = await VisaModule.evaluate({
+        visaType,
+        applicationType: applicantData.applicationType || 'NEW',
+        data: applicantData
+      });
+      
+      // 평가 결과 로그
+      logger.info('평가 결과 전체:', JSON.stringify(result, null, 2));
+      
+      // 평가 결과에서 세부 정보 추출
+      const evaluationDetails = result.result || {};
+      
+      // 실제 평가 결과 구조에 맞게 데이터 매핑
+      const scores = evaluationDetails.details?.scores || {};
+      
+      // E-1 비자의 경우 세부 점수 매핑
+      const mappedDetails = {};
+      let expertiseScore = {};
+      
+      if (visaType === 'E-1') {
+        // expertise 평가의 세부 점수 가져오기
+        expertiseScore = scores.expertise || {};
+        const expertiseDetails = expertiseScore.details || {};
+        const rawScore = expertiseScore.rawScore || 0;
+        const maxScore = expertiseScore.maxScore || 140;
+        
+        logger.info('전문성 평가 상세:', JSON.stringify(expertiseDetails, null, 2));
+        
+        // 100점 만점 기준으로 각 항목의 최대 점수 계산
+        mappedDetails.education = {
+          score: expertiseDetails.education || 0,
+          maxScore: Math.round((40 / 140) * 100), // 약 29점
+          details: { degree: applicantData.highestEducation }
+        };
+        mappedDetails.experience = {
+          score: expertiseDetails.experience || 0,
+          maxScore: Math.round((30 / 140) * 100), // 약 21점
+          details: { years: parseInt(applicantData.yearsOfExperience) || 0 }
+        };
+        mappedDetails.research = {
+          score: expertiseDetails.research || 0,
+          maxScore: Math.round((30 / 140) * 100), // 약 21점
+          details: { publications: parseInt(applicantData.publicationsCount) || 0 }
+        };
+        mappedDetails.age = {
+          score: expertiseDetails.age || 0,
+          maxScore: Math.round((20 / 140) * 100), // 약 14점
+          details: { age: expertiseDetails.age }
+        };
+        mappedDetails.language = {
+          score: expertiseDetails.korean || 0,
+          maxScore: Math.round((20 / 140) * 100), // 약 14점
+          details: { koreanLevel: applicantData.koreanProficiency }
+        };
+      } else {
+        // 기본값
+        mappedDetails.education = { score: 0, maxScore: 40 };
+        mappedDetails.experience = { score: 0, maxScore: 30 };
+        mappedDetails.expertise = { score: 0, maxScore: 30 };
+        mappedDetails.institution = { score: 0, maxScore: 10 };
+        mappedDetails.additional = { score: 0, maxScore: 10 };
+      }
+      
+      return {
+        visaType,
+        applicationType: applicantData.applicationType,
+        passPreScreening: evaluationDetails.eligible || false,
+        score: evaluationDetails.score || 0,
+        rawScore: expertiseScore?.rawScore || 0,
+        maxScore: expertiseScore?.maxScore || 140,
+        details: mappedDetails,
+        recommendations: evaluationDetails.recommendations || [],
+        alternatives: evaluationDetails.alternatives || [],
+        remediableIssues: evaluationDetails.issues || [],
+        metadata: {
+          evaluationId: result.evaluationId || Date.now().toString(),
+          timestamp: new Date().toISOString()
+        }
+      };
+    } catch (error) {
+      logger.error('Pre-screening error:', error);
+      throw error;
+    }
+  },
+  
+  // 비자 요구사항 조회
+  getVisaRequirements: async (visaType, applicationType, nationality) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    
+    const config = VisaModule.getVisaConfig(visaType);
+    if (!config) {
+      throw new Error(`Visa type ${visaType} not found`);
+    }
+    
+    // 기본 요구사항
+    const baseRequirements = {
+      visaType,
+      applicationType,
+      nationality,
+      general: {
+        education: config.base_requirements?.education,
+        experience: config.base_requirements?.experience_years,
+        age: config.base_requirements?.age
+      },
+      documents: {
+        required: [],
+        optional: []
+      },
+      additional: {},
+      processingTime: config.processing_days || { min: 7, max: 30 },
+      fees: {
+        government: 0,
+        service: 0
+      }
+    };
+    
+    // 신청 타입별 문서 요구사항
+    if (config.document_requirements) {
+      const docReqs = config.document_requirements[applicationType];
+      if (docReqs) {
+        baseRequirements.documents.required = docReqs.mandatory || [];
+        baseRequirements.documents.optional = docReqs.optional || [];
+      }
+    }
+    
+    // 특별 요구사항
+    if (config.special_requirements) {
+      baseRequirements.additional = config.special_requirements;
+    }
+    
+    // E-1 비자 특별 처리
+    if (visaType === 'E-1') {
+      if (applicationType === 'NEW') {
+        baseRequirements.additional.minimumScore = 60;
+        baseRequirements.additional.pointsSystem = config.points_evaluation;
+      }
+      baseRequirements.additional.weeklyHours = config.special_requirements?.minimum_weekly_hours;
+      baseRequirements.additional.onlineRatio = config.special_requirements?.maximum_online_ratio;
+    }
+    
+    return baseRequirements;
+  },
+  
+  // 비자 변경 가능성 체크
+  checkChangeability: async (fromVisa, toVisa) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    
+    // E-1으로 변경 가능한 비자 목록 (config에서 가져옴)
+    const config = VisaModule.getVisaConfig(toVisa);
+    const changeableFrom = config?.changeable_from || [];
+    
+    const isChangeable = changeableFrom.includes(fromVisa);
+    
+    return {
+      isChangeable,
+      fromVisa,
+      toVisa,
+      requirements: isChangeable ? {
+        additionalDocuments: ['전 근무처 경력증명서', '비자 변경 사유서'],
+        restrictions: [],
+        processingTime: { min: 14, max: 30 }
+      } : null,
+      alternatives: !isChangeable ? ['Consider applying for a new visa'] : []
+    };
+  },
+  
+  // 필드 유효성 검증
+  validateField: async (visaType, fieldName, value, context = {}) => {
+    if (!moduleInitialized) {
+      await VisaModule.initialize();
+      moduleInitialized = true;
+    }
+    
+    const config = VisaModule.getVisaConfig(visaType);
+    if (!config) {
+      throw new Error(`Visa type ${visaType} not found`);
+    }
+    
+    let isValid = true;
+    let message = '';
+    let suggestions = [];
+    
+    // E-1 비자 필드별 검증
+    if (visaType === 'E-1') {
+      switch (fieldName) {
+        case 'education':
+          const requiredEducation = config.base_requirements?.education;
+          const educationLevels = ['HIGH_SCHOOL', 'BACHELOR', 'MASTERS', 'DOCTORATE'];
+          const valueIndex = educationLevels.indexOf(value);
+          const requiredIndex = educationLevels.indexOf(requiredEducation);
+          
+          isValid = valueIndex >= requiredIndex;
+          if (!isValid) {
+            message = `E-1 비자는 최소 ${requiredEducation === 'MASTERS' ? '석사' : '박사'} 학위가 필요합니다.`;
+            suggestions = ['학위 요건을 충족하지 못하는 경우 다른 비자 타입을 고려해보세요.'];
+          }
+          break;
+          
+        case 'experience':
+          const requiredYears = config.base_requirements?.experience_years || 0;
+          isValid = value >= requiredYears;
+          if (!isValid) {
+            message = `E-1 비자는 최소 ${requiredYears}년의 경력이 필요합니다.`;
+            suggestions = [`현재 경력: ${value}년. ${requiredYears - value}년의 추가 경력이 필요합니다.`];
+          }
+          break;
+          
+        case 'weeklyHours':
+          const minHours = config.special_requirements?.minimum_weekly_hours || 6;
+          isValid = value >= minHours;
+          if (!isValid) {
+            message = `주당 최소 ${minHours}시간 이상의 강의가 필요합니다.`;
+          }
+          break;
+          
+        case 'onlineRatio':
+          const maxRatio = config.special_requirements?.maximum_online_ratio || 0.5;
+          isValid = value <= maxRatio * 100;
+          if (!isValid) {
+            message = `온라인 강의 비율은 ${maxRatio * 100}% 이하여야 합니다.`;
+            suggestions = ['오프라인 강의 비중을 늘려주세요.'];
+          }
+          break;
+          
+        case 'institutionType':
+          const allowedTypes = config.special_requirements?.institution_types || [];
+          isValid = allowedTypes.includes(value);
+          if (!isValid) {
+            message = '해당 기관은 E-1 비자 발급 대상이 아닙니다.';
+            suggestions = ['대학교, 전문대학, 연구기관 등이 해당됩니다.'];
+          }
+          break;
+      }
+    }
+    
+    // 일반적인 검증
+    if (fieldName === 'passportExpiry') {
+      const expiryDate = new Date(value);
+      const sixMonthsFromNow = new Date();
+      sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+      
+      isValid = expiryDate > sixMonthsFromNow;
+      if (!isValid) {
+        message = '여권 유효기간이 6개월 이상 남아있어야 합니다.';
+        suggestions = ['여권을 갱신한 후 신청해주세요.'];
+      }
+    }
+    
+    return {
+      isValid,
+      fieldName,
+      value,
+      message,
+      suggestions,
+      severity: isValid ? 'success' : 'error'
+    };
+  }
+};
 
 // 모델
 const VisaApplication = require('../../../models/visa/VisaApplication');
@@ -480,12 +811,40 @@ router.post('/create-application', protect, asyncHandler(async (req, res) => {
   });
 
   try {
+    // applicationData에서 personalInfo 추출
+    const personalInfo = {
+      fullName: applicationData.fullName,
+      birthDate: applicationData.birthDate,
+      nationality: applicationData.nationality,
+      gender: applicationData.gender,
+      passportNumber: applicationData.passportNumber,
+      passportExpiry: applicationData.passportExpiry,
+      email: applicationData.email,
+      phone: applicationData.phone,
+      currentAddress: applicationData.currentAddress,
+      currentCity: applicationData.currentCity,
+      currentCountry: applicationData.currentCountry
+    };
+
+    // evaluationData 생성
+    const evaluationData = {
+      educationLevel: applicationData.highestEducation,
+      experienceYears: applicationData.yearsOfExperience,
+      institutionType: applicationData.institutionType || 'university',
+      institution: applicationData.universityName,
+      position: applicationData.jobTitle,
+      researchField: applicationData.educationField,
+      publications: applicationData.publications || 0
+    };
+
     const application = new VisaApplication({
       userId: req.user.id,
       visaType,
       applicationType,
-      applicationData,
-      status: 'draft',
+      personalInfo,
+      evaluationData,
+      applicationData, // 전체 데이터도 보관
+      status: 'DRAFT', // 대문자로 변경
       createdDate: new Date(),
       lastModified: new Date()
     });

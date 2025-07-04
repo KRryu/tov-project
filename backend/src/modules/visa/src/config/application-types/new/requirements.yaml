@@ -1,0 +1,35 @@
+# 신규 신청 요구사항
+NEW_APPLICATION:
+  passing_score: 70
+  
+  evaluation_categories:
+    - name: eligibility
+      weight: 40
+      description: 기본 자격 요건
+    - name: documents
+      weight: 30
+      description: 문서 완성도
+    - name: expertise
+      weight: 30
+      description: 전문성 및 경력
+
+  general_requirements:
+    valid_passport: true
+    passport_validity_months: 6
+    photo_requirements:
+      size: "3.5cm x 4.5cm"
+      background: white
+      recent_months: 6
+    
+  health_requirements:
+    medical_certificate: true
+    valid_months: 3
+    designated_hospitals: true
+    
+  criminal_requirements:
+    criminal_record: true
+    apostille_required: true
+    valid_months: 6
+    from_countries:
+      - home_country
+      - residence_country  # 6개월 이상 거주한 국가

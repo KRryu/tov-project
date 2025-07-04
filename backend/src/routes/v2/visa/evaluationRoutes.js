@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { protect } = require('../../../middlewares/auth');
+// 비자 평가 컨트롤러
 const visaEvaluationController = require('../../../controllers/visa/visaEvaluationController');
 const EvaluationHistory = require('../../../models/visa/EvaluationHistory');
 const DocumentSubmission = require('../../../models/visa/DocumentSubmission');

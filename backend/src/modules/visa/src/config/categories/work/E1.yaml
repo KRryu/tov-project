@@ -1,0 +1,167 @@
+# E-1 교수 비자 설정
+code: E-1
+name: 교수
+name_ko: 교수
+name_en: Professor
+category: work
+description: |
+  고등교육법에 의한 자격요건을 갖춘 외국인으로서 
+  전문대학 이상의 교육기관이나 이에 준하는 기관에서 
+  교육 또는 연구지도 활동에 종사하려는 사람
+
+base_requirements:
+  education: MASTERS  # 최소 석사 학위
+  experience_years: 2 # 최소 2년 경력
+  age:
+    min: null
+    max: null
+
+supported_applications:
+  - NEW
+  - EXTENSION
+  - CHANGE
+
+complexity: MEDIUM
+processing_days:
+  min: 7
+  max: 30
+
+special_requirements:
+  institution_types:
+    - UNIVERSITY
+    - COLLEGE
+    - JUNIOR_COLLEGE
+    - RESEARCH_INSTITUTE
+  
+  minimum_weekly_hours: 6
+  maximum_online_ratio: 0.5  # 온라인 강의 50% 이하
+  
+  # 활동 제한 사항
+  concurrent_positions: 
+    allowed: true
+    max_institutions: 2  # 최대 2개 기관
+    requires_permission: true  # 근무처 추가 허가 필요
+  
+  # 겸직 가능 활동
+  allowed_activities:
+    - 연구기관 연구 활동
+    - 정부출연연구소 활동
+    - 기업부설연구소 활동
+    - 전문대학 이상 고등교육기관 활동
+
+interview_required: false
+health_check_required: true
+criminal_check_required: true
+
+# 점수제 평가 (NEW 신청 시)
+points_evaluation:
+  minimum_score: 43  # 최소 43점 필요 (60/140 * 100 = 약 43점, 100점 만점 기준)
+  education:
+    DOCTORATE: 40
+    MASTERS: 30
+  experience:
+    per_year: 5
+    max: 30
+  research:
+    publication: 5
+    max: 30
+  age:
+    under_30: 20
+    30_to_39: 15
+    40_to_49: 10
+    50_to_59: 5
+  korean_ability:
+    TOPIK_6: 20
+    TOPIK_5: 15
+    TOPIK_4: 10
+    TOPIK_3: 5
+
+# 체류기간 관련
+stay_duration:
+  NEW:
+    min_months: 12
+    max_months: 24
+  EXTENSION:
+    max_months: 24
+    max_total_years: 10  # 총 체류 10년 제한
+  CHANGE:
+    max_months: 24
+
+extension_limits:
+  max_count: 5
+  max_years: 10
+  per_extension_years: 2
+
+salary_requirements:
+  minimum: null  # 기관별 상이
+  reference: INSTITUTION_STANDARD
+
+# 서류 요구사항
+document_requirements:
+  NEW:
+    mandatory:
+      - 여권 사본
+      - 표준규격사진 1장
+      - 사증발급신청서
+      - 수수료
+      - 고용계약서 또는 임용예정확인서
+      - 학위증명서 (아포스티유/영사확인)
+      - 경력증명서
+      - 재직증명서
+      - 신원보증서
+      - 채용신체검사서
+      - 범죄경력증명서
+    optional:
+      - 연구실적 증명서류
+      - 추천서
+  EXTENSION:
+    mandatory:
+      - 여권 및 외국인등록증
+      - 신청서
+      - 수수료
+      - 고용계약서 (원본 및 사본)
+      - 재직증명서
+      - 원천징수영수증 또는 근로소득원천징수부
+      - 소득금액증명
+    optional:
+      - 강의시간표
+      - 연구실적 증명서류
+  CHANGE:
+    mandatory:
+      - 신청서
+      - 여권 및 외국인등록증  
+      - 수수료
+      - 고용계약서
+      - 재직증명서
+      - 전 근무처 경력증명서
+      - 학위증명서
+      - 신원보증서
+      - 채용신체검사서
+      - 범죄경력증명서
+
+# 가족동반 (F-3) 관련
+family_accompaniment:
+  allowed: true
+  visa_type: F-3
+  eligible_relations:
+    - 배우자
+    - 미성년 자녀
+  requirements:
+    - 가족관계 증명서류
+    - 재정능력 증명
+
+# 비자 변경 가능 경로
+changeable_from:
+  - D-2  # 유학
+  - D-10 # 구직
+  - E-3  # 연구
+  - E-5  # 전문직업
+  - E-6  # 예술흥행
+  - E-7  # 특정활동
+
+# 특이사항
+special_notes:
+  - 온라인 강의는 전체 강의시간의 50% 이하로 제한
+  - 근무처 추가 시 사전 허가 필요
+  - 신원보증서는 기관장 명의 제출
+  - 채용신체검사는 정신질환 및 감염병 검사 포함

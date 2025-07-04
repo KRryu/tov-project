@@ -16,6 +16,7 @@ import ChangeApplicationForm from './forms/ChangeApplicationForm';
 import LegalMatchingStep from './components/LegalMatchingStep';
 import PaymentStep from './components/PaymentStep';
 import DocumentUploadStep from './components/DocumentUploadStep';
+import HopefulEvaluationResults from '../evaluation/components/HopefulEvaluationResults';
 
 const DynamicApplicationForm = () => {
   const navigate = useNavigate();
@@ -105,13 +106,15 @@ const DynamicApplicationForm = () => {
       );
 
       if (result.success) {
+        console.log('사전평가 결과:', result.data);
         setEvaluationResult(result.data);
-        setCurrentStep(4); // 법무대리인 선택 단계로
+        // 3단계에서 결과를 보여주고, 사용자가 다음 버튼을 누르면 4단계로 이동
+        // setCurrentStep(4); // 이 줄을 제거하여 3단계에 머물도록 함
         
         if (result.data.passPreScreening) {
-          toast.success('사전심사를 통과했습니다! 법무대리인을 선택해주세요.');
+          toast.success('사전심사를 통과했습니다!');
         } else {
-          toast.warning('사전심사 결과 보완이 필요한 사항이 있습니다. 전문가의 도움이 필요합니다.');
+          toast.warning('사전심사 결과 보완이 필요한 사항이 있습니다.');
         }
       }
     } catch (error) {
@@ -146,12 +149,17 @@ const DynamicApplicationForm = () => {
     setInitialData(updatedData);
     sessionStorage.setItem('applicationData', JSON.stringify(updatedData));
     
-    // 3단계(상세정보 완료) 후 사전평가 자동 실행
-    if (currentStep === 2 && stepData.currentStep === 2) {
-      await handlePreScreening(updatedData);
-    } else {
-      // 다음 단계로
-      setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    // 다음 단계로 이동
+    setCurrentStep(prev => Math.min(prev + 1, steps.length));
+    
+    // 페이지 상단으로 스크롤
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+    
+    // 2단계 완료 후 3단계로 이동했을 때 사전평가 자동 실행
+    if (currentStep === 2) {
+      setTimeout(() => {
+        handlePreScreening(updatedData);
+      }, 500);
     }
   };
 
@@ -228,42 +236,6 @@ const DynamicApplicationForm = () => {
           </motion.div>
         )}
 
-        {/* 평가 결과 표시 (사전심사 완료시) */}
-        {evaluationResult && currentStep >= 3 && (
-          <motion.div
-            className="mb-8 bg-white rounded-lg shadow-sm p-6"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">
-              사전심사 결과
-            </h3>
-            <div className={`p-4 rounded-lg ${
-              evaluationResult.passPreScreening 
-                ? 'bg-green-50 border border-green-200' 
-                : 'bg-amber-50 border border-amber-200'
-            }`}>
-              <p className={`font-medium ${
-                evaluationResult.passPreScreening 
-                  ? 'text-green-800' 
-                  : 'text-amber-800'
-              }`}>
-                {evaluationResult.passPreScreening 
-                  ? '✓ 사전심사 통과' 
-                  : '⚠ 보완 필요'}
-              </p>
-              {evaluationResult.remediableIssues?.length > 0 && (
-                <ul className="mt-2 space-y-1">
-                  {evaluationResult.remediableIssues.map((issue, idx) => (
-                    <li key={idx} className="text-sm text-gray-700">
-                      • {issue.message}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </motion.div>
-        )}
 
         {/* 메인 폼 영역 */}
         <motion.div
@@ -273,8 +245,48 @@ const DynamicApplicationForm = () => {
           exit={{ opacity: 0, x: -20 }}
           transition={{ duration: 0.3 }}
         >
-          {currentStep <= 3 ? (
+          {currentStep <= 2 ? (
             getFormComponent()
+          ) : currentStep === 3 ? (
+            <div>
+              {loading ? (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <h2 className="text-2xl font-semibold text-gray-900 mb-4">사전 평가 진행 중</h2>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <LoadingSpinner />
+                    <p className="mt-4 text-gray-600">평가가 진행되고 있습니다...</p>
+                  </div>
+                </div>
+              ) : evaluationResult ? (
+                <div className="space-y-6">
+                  {/* 상세 평가 결과 표시 */}
+                  <HopefulEvaluationResults evaluationResult={evaluationResult} />
+                  
+                  {/* 다음 단계 버튼 */}
+                  <div className="flex justify-between items-center">
+                    <button
+                      onClick={() => setCurrentStep(2)}
+                      className="px-6 py-3 text-gray-700 hover:text-gray-900 transition-colors"
+                    >
+                      이전으로
+                    </button>
+                    <button
+                      onClick={() => {
+                        setCurrentStep(4);
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                      className="px-8 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      법무대리인 매칭 진행
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <p className="text-gray-600">잠시만 기다려주세요...</p>
+                </div>
+              )}
+            </div>
           ) : currentStep === 4 ? (
             <LegalMatchingStep
               applicationId={applicationId}

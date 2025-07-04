@@ -1,0 +1,34 @@
+{
+  "name": "@tov/visa-module",
+  "version": "4.0.0",
+  "description": "TOV 비자 평가 시스템 V4 - 37개 비자 통합 지원",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.js",
+    "validate:config": "node scripts/validateConfig.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "joi": "^17.9.2",
+    "lodash": "^4.17.21",
+    "winston": "^3.8.2"
+  },
+  "devDependencies": {
+    "jest": "^29.5.0",
+    "eslint": "^8.42.0"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "keywords": [
+    "visa",
+    "evaluation",
+    "immigration",
+    "korea"
+  ],
+  "author": "TOV Development Team",
+  "license": "PROPRIETARY"
+}

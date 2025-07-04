@@ -21,15 +21,11 @@ import EventsPage from './pages/Community/Events/EventsPage';
 import EventDetail from './pages/Community/Events/components/EventDetail';
 import BridgeClub from './pages/Community/Bridge';
 import VisaService from './pages/Services/VisaService';
-<<<<<<< HEAD
 import ApplicationTypeSelection from './pages/Services/VisaService/application/ApplicationTypeSelection';
 import DynamicApplicationForm from './pages/Services/VisaService/application/DynamicApplicationForm';
-import E1EvaluationPage from './pages/Services/VisaService/evaluation/E1EvaluationPage';
 import VisaApplicationComplete from './pages/Services/VisaService/complete';
-=======
 import VisaApplication from './pages/Services/VisaService/application';
 import E1EvaluationPageV3 from './pages/Services/VisaService/evaluation/E1EvaluationPageV3';
->>>>>>> e9e0c1496ee2db3207378a34af10910624f1ff8a
 
 function App() {
   return (
@@ -55,15 +51,10 @@ function App() {
               <Route path="bridge" element={<BridgeClub />} />
             </Route>
             <Route path="/services/visa" element={<VisaService />} />
-<<<<<<< HEAD
             <Route path="/services/visa/application" element={<ApplicationTypeSelection />} />
             <Route path="/services/visa/application/form" element={<DynamicApplicationForm />} />
-            <Route path="/services/visa/evaluation/e1" element={<E1EvaluationPage />} />
+            <Route path="/services/visa/evaluation/e1-v3" element={<E1EvaluationPageV3 />} />
             <Route path="/services/visa/complete" element={<VisaApplicationComplete />} />
-=======
-            <Route path="/services/visa/application" element={<VisaApplication />} />
-            <Route path="/services/visa/evaluation/e1" element={<E1EvaluationPageV3 />} />
->>>>>>> e9e0c1496ee2db3207378a34af10910624f1ff8a
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

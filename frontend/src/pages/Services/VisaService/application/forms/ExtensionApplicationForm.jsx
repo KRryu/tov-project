@@ -178,6 +178,7 @@ const ExtensionApplicationForm = ({
       
       if (currentFormStep < 2) {
         setCurrentFormStep(currentFormStep + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         onNext(mergedData);
       } else {
         // 연장 신청 특별 검증
@@ -204,6 +205,7 @@ const ExtensionApplicationForm = ({
   const handlePrevious = () => {
     if (currentFormStep > 1) {
       setCurrentFormStep(currentFormStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (onPrev) {
       onPrev();
     }
@@ -259,9 +261,17 @@ const ExtensionApplicationForm = ({
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  {/* 기본 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">기본 정보</h3>
+                  {/* 기본 정보 카드 */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg overflow-hidden"> 
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        기본 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -351,11 +361,25 @@ const ExtensionApplicationForm = ({
                         )}
                       </div>
                     </div>
+                    </div>
                   </div>
 
-                  {/* 현재 비자 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">현재 비자 정보</h3>
+                  {/* 현재 비자 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                        </svg>
+                        현재 비자 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -454,11 +478,25 @@ const ExtensionApplicationForm = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
-                  {/* 현재 활동 정보 섹션 */}
-                  <div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">현재 활동 정보</h3>
+                  {/* 현재 활동 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.3 }}
+                  >
+                    <div className="bg-gradient-to-r from-green-600 to-emerald-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        현재 활동 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -531,7 +569,8 @@ const ExtensionApplicationForm = ({
                         />
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
                 </motion.div>
               )}
 
@@ -543,9 +582,22 @@ const ExtensionApplicationForm = ({
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  {/* 연장 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">연장 정보</h3>
+                  {/* 연장 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-yellow-50 to-orange-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <div className="bg-gradient-to-r from-yellow-600 to-orange-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        연장 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -581,11 +633,25 @@ const ExtensionApplicationForm = ({
                         )}
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
-                  {/* 활동 실적 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">활동 실적</h3>
+                  {/* 활동 실적 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
+                        </svg>
+                        활동 실적
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -632,7 +698,8 @@ const ExtensionApplicationForm = ({
                         />
                       </div>
                     </div>
-                  </div>
+                    </div>
+                  </motion.div>
 
                   {/* 향후 계획 섹션 */}
                   <div className="border-b border-gray-200 pb-6">

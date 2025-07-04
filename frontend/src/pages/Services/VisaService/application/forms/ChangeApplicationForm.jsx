@@ -172,7 +172,7 @@ const ChangeApplicationForm = ({
       setChangeabilityResult(result.data);
       
       if (!result.data.changeable) {
-        toast.warning(`${currentVisa}에서 ${targetVisa}로 직접 변경이 불가능합니다.`);
+        toast.warning(currentVisa + '에서 ' + targetVisa + '로 직접 변경이 불가능합니다.');
         if (result.data.alternatives?.length > 0) {
           toast.info('대안을 확인해주세요.');
         }
@@ -264,6 +264,7 @@ const ChangeApplicationForm = ({
           await checkChangeability(values.currentVisaType, values.targetVisaType);
         }
         setCurrentFormStep(currentFormStep + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
         onNext(mergedData);
       } else {
         // 마지막 단계 - 사전심사로 진행
@@ -286,6 +287,7 @@ const ChangeApplicationForm = ({
   const handlePrevious = () => {
     if (currentFormStep > 1) {
       setCurrentFormStep(currentFormStep - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (onPrev) {
       onPrev();
     }
@@ -388,9 +390,17 @@ const ChangeApplicationForm = ({
                   exit={{ opacity: 0, x: -20 }}
                   className="space-y-6"
                 >
-                  {/* 기본 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">기본 정보</h3>
+                  {/* 기본 정보 카드 */}
+                  <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl shadow-lg overflow-hidden"> 
+                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        기본 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -480,11 +490,25 @@ const ChangeApplicationForm = ({
                         )}
                       </div>
                     </div>
+                    </div>
                   </div>
 
-                  {/* 현재 비자 정보 섹션 */}
-                  <div className="border-b border-gray-200 pb-6">
-                    <h3 className="text-lg font-medium text-gray-900 mb-4">현재 비자 정보</h3>
+                  {/* 현재 비자 정보 카드 */}
+                  <motion.div 
+                    className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl shadow-lg overflow-hidden"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  >
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 px-6 py-4">
+                      <h3 className="text-xl font-semibold text-white flex items-center">
+                        <svg className="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                        </svg>
+                        현재 비자 정보
+                      </h3>
+                    </div>
+                    <div className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -643,6 +667,7 @@ const ChangeApplicationForm = ({
                       )}
                     </div>
                   </div>
+                  </motion.div>
 
                   {/* 현재 활동 정보 섹션 */}
                   <div>

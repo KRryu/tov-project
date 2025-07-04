@@ -12,14 +12,11 @@ const router = express.Router();
 const visaApplicationRoutes = require('./applicationRoutes');
 const visaEvaluationRoutes = require('./evaluationRoutes');
 const visaDocumentRoutes = require('./documentRoutes');
-<<<<<<< HEAD
 const visaAdvancedRoutes = require('./advancedRoutes');
-=======
 // 새로 추가된 라우트들
 const visaMatchingRoutes = require('./matchingRoutes');
 const visaWorkflowRoutes = require('./workflowRoutes');
 const visaPaymentRoutes = require('./paymentRoutes');
->>>>>>> e9e0c1496ee2db3207378a34af10910624f1ff8a
 
 // 로깅을 위한 미들웨어
 const logger = require('../../../utils/logger');
@@ -35,14 +32,11 @@ router.use((req, res, next) => {
 router.use('/applications', visaApplicationRoutes);
 router.use('/evaluation', visaEvaluationRoutes);
 router.use('/documents', visaDocumentRoutes);
-<<<<<<< HEAD
 router.use('/advanced', visaAdvancedRoutes);
-=======
 // 새로 추가된 라우트들
 router.use('/matching', visaMatchingRoutes);
 router.use('/workflow', visaWorkflowRoutes);
 router.use('/payment', visaPaymentRoutes);
->>>>>>> e9e0c1496ee2db3207378a34af10910624f1ff8a
 
 // V2 API 정보 엔드포인트
 router.get('/info', (req, res) => {
@@ -62,13 +56,10 @@ router.get('/info', (req, res) => {
       applications: '/api/v2/visa/applications',
       evaluation: '/api/v2/visa/evaluation',
       documents: '/api/v2/visa/documents',
-<<<<<<< HEAD
-      advanced: '/api/v2/visa/advanced'
-=======
+      advanced: '/api/v2/visa/advanced',
       matching: '/api/v2/visa/matching',
       workflow: '/api/v2/visa/workflow',
       payment: '/api/v2/visa/payment'
->>>>>>> e9e0c1496ee2db3207378a34af10910624f1ff8a
     },
     documentation: '/api/v2/docs',
     support: 'support@tov.com'

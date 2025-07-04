@@ -1,0 +1,58 @@
+# 연장 신청 요구사항
+EXTENSION_APPLICATION:
+  passing_score: 65  # 신규보다 낮은 합격선
+  
+  evaluation_categories:
+    - name: stayHistory
+      weight: 40
+      description: 체류 이력 및 준법성
+    - name: performance  
+      weight: 30
+      description: 활동 실적
+    - name: continuity
+      weight: 20
+      description: 계약 연속성
+    - name: documents
+      weight: 10
+      description: 문서 완성도
+
+  stay_requirements:
+    min_remaining_days: 30  # 만료 30일 전부터 신청 가능
+    max_advance_days: 120   # 만료 4개월 전부터 신청 가능
+    
+  compliance_check:
+    violations_allowed: 0
+    tax_payment_required: true
+    insurance_required: true
+    address_registration: true
+
+  # 비자별 연장 요건
+  visa_specific:
+    E-1:
+      min_weekly_hours: 6
+      max_online_ratio: 0.5
+      attendance_rate: 0.8
+      performance_score: 3.0  # 5점 만점
+      
+    E-2:
+      min_weekly_hours: 15
+      attendance_rate: 0.9
+      student_evaluation: 3.5
+      
+    E-7:
+      project_completion: true
+      employer_evaluation: SATISFACTORY
+      skill_improvement: true
+      
+    D-2:
+      gpa_minimum: 2.0
+      attendance_rate: 0.7
+      credit_progress: 0.6  # 60% 이상 이수
+
+  # 연장 제한
+  extension_limits:
+    consecutive_limit: 3    # 연속 연장 제한
+    total_stay_check: true  # 총 체류기간 확인
+    special_contribution: 
+      research_achievement: +1  # 추가 연장 가능
+      social_contribution: +1   # 추가 연장 가능

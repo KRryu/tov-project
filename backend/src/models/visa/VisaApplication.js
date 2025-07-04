@@ -382,9 +382,11 @@ const visaApplicationSchema = new Schema({
         if (!fields) return true;
         return fields.required.every(field => v && v[field] !== undefined && v[field] !== null && v[field] !== '');
       },
-      message: props => {
-        const fields = VISA_FIELDS[props.parent().visaType]?.evaluation;
-        const missing = fields ? fields.required.filter(f => !props.value || props.value[f] === undefined || props.value[f] === null || props.value[f] === '') : [];
+      message: function(props) {
+        // props.parent() 대신 this 사용
+        const visaType = this.visaType || (this.parent && this.parent().visaType);
+        const fields = VISA_FIELDS[visaType]?.evaluation;
+        const missing = fields ? fields.required.filter(f => !props || props[f] === undefined || props[f] === null || props[f] === '') : [];
         return `다음 필수 평가 필드가 누락되었습니다: ${missing.join(', ')}`;
       }
     }

@@ -1,0 +1,119 @@
+# 신규 신청 필수 문서
+NEW_APPLICATION_DOCUMENTS:
+  # 모든 비자 공통 필수 문서
+  common_required:
+    - document: PASSPORT
+      description: 여권 사본
+      requirements:
+        - 유효기간 6개월 이상
+        - 신원정보면 포함
+    
+    - document: APPLICATION_FORM
+      description: 비자발급신청서
+      requirements:
+        - 서명 포함
+        - 최근 6개월 이내 작성
+    
+    - document: PHOTO
+      description: 사진 1매
+      requirements:
+        - 3.5cm x 4.5cm
+        - 흰색 배경
+        - 최근 6개월 이내
+    
+    - document: FEE_PAYMENT
+      description: 수수료 납부 영수증
+      amount: 
+        single_entry: 60000
+        multiple_entry: 90000
+
+  # 비자 타입별 추가 필수 문서
+  visa_specific:
+    E-1:
+      required:
+        - document: DIPLOMA
+          description: 학위증명서
+          requirements:
+            - 석사 이상
+            - 아포스티유 또는 영사확인
+        
+        - document: EMPLOYMENT_CONTRACT
+          description: 고용계약서
+          requirements:
+            - 학교 직인
+            - 급여 명시
+            - 근무 조건 포함
+        
+        - document: CRIMINAL_RECORD
+          description: 범죄경력증명서
+          requirements:
+            - 본국 발급
+            - 아포스티유 필수
+            - 6개월 이내
+        
+        - document: HEALTH_CERTIFICATE
+          description: 건강진단서
+          requirements:
+            - 지정병원 발급
+            - 3개월 이내
+      
+      optional:
+        - document: CAREER_CERTIFICATE
+          description: 경력증명서
+        - document: RESEARCH_ACHIEVEMENTS
+          description: 연구실적증명서
+
+    E-2:
+      required:
+        - document: DIPLOMA
+          description: 학사 학위증명서
+        - document: CRIMINAL_RECORD
+          description: 범죄경력증명서
+        - document: EMPLOYMENT_CONTRACT
+          description: 고용계약서
+        - document: HEALTH_CERTIFICATE
+          description: 건강진단서
+      
+      optional:
+        - document: TEACHING_CERTIFICATE
+          description: 교사자격증
+        - document: RECOMMENDATION_LETTER
+          description: 추천서
+
+    E-7:
+      required:
+        - document: DIPLOMA
+          description: 학위증명서
+        - document: EMPLOYMENT_CONTRACT
+          description: 고용계약서
+        - document: COMPANY_DOCUMENTS
+          description: 회사 서류
+          includes:
+            - 사업자등록증
+            - 법인등기부등본
+            - 고용추천서
+        - document: MAJOR_RELEVANCE_PROOF
+          description: 전공 관련성 증명
+
+  # 문서 제출 규칙
+  submission_rules:
+    language:
+      accepted:
+        - korean
+        - english
+      translation_required:
+        - chinese
+        - japanese
+        - other
+      
+    authentication:
+      apostille_countries: true  # 아포스티유 협약국
+      consular_confirmation: true  # 비협약국
+      
+    format:
+      original_required:
+        - DIPLOMA
+        - CRIMINAL_RECORD
+      copy_accepted:
+        - PASSPORT
+        - EMPLOYMENT_CONTRACT
