@@ -61,7 +61,7 @@ const Header = () => {
               TOVplay
             </Link>
             <Link to="/community" className="text-gray-700 hover:text-blue-600">
-              Community
+              Bridge Community
             </Link>
             {/* 로그인 상태일 때만 대시보드 표시 */}
             {isAuthenticated && (

@@ -13,13 +13,12 @@ import ChallengeDetail from './pages/TOVspark/pages/ChallengeDetail';
 import Register from './pages/Auth/Register';
 import Login from './pages/Auth/Login';
 import Community from './pages/Community';
-import Forum from './pages/Community/Forum';
-import CountryGroups from './pages/Community/CountryGroups';
-import ForumPostDetail from './pages/Community/Forum/components/ForumPostDetail';
-import CountryGroupPostDetail from './pages/Community/CountryGroups/components/CountryGroupPostDetail';
-import EventsPage from './pages/Community/Events/EventsPage';
-import EventDetail from './pages/Community/Events/components/EventDetail';
 import BridgeClub from './pages/Community/Bridge';
+import BuddyProgram from './pages/Community/Programs/Buddy';
+import MyJourney from './pages/Community/MyJourney';
+import ProgramExplore from './pages/Community/Programs';
+import Achievements from './pages/Community/Achievements';
+import EventCalendar from './pages/Community/EventCalendar';
 import VisaService from './pages/Services/VisaService';
 import ApplicationTypeSelection from './pages/Services/VisaService/application/ApplicationTypeSelection';
 import DynamicApplicationForm from './pages/Services/VisaService/application/DynamicApplicationForm';
@@ -42,13 +41,12 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/community" element={<Community />}>
-              <Route path="forum" element={<Forum />} />
-              <Route path="forum/post/:postId" element={<ForumPostDetail />} />
-              <Route path="country-groups" element={<CountryGroups />} />
-              <Route path="country-groups/post/:postId" element={<CountryGroupPostDetail />} />
-              <Route path="events" element={<EventsPage />} />
-              <Route path="events/:eventId" element={<EventDetail />} />
+              <Route path="my-journey" element={<MyJourney />} />
+              <Route path="programs" element={<ProgramExplore />} />
+              <Route path="achievements" element={<Achievements />} />
+              <Route path="events" element={<EventCalendar />} />
               <Route path="bridge" element={<BridgeClub />} />
+              <Route path="buddy" element={<BuddyProgram />} />
             </Route>
             <Route path="/services/visa" element={<VisaService />} />
             <Route path="/services/visa/application" element={<ApplicationTypeSelection />} />

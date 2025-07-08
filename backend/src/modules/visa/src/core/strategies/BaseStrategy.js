@@ -236,12 +236,15 @@ class BaseStrategy {
 
     for (const [component, data] of Object.entries(scoreComponents)) {
       if (data.score !== undefined && data.weight !== undefined) {
-        totalScore += data.score * data.weight;
+        // score가 0-100 범위의 백분율이므로 weight로 곱함
+        const weightedScore = (data.score / 100) * data.weight;
+        totalScore += weightedScore;
         totalWeight += data.weight;
       }
     }
 
-    return totalWeight > 0 ? Math.round(totalScore / totalWeight) : 0;
+    // 최종 점수는 100점 만점 기준으로 변환
+    return totalWeight > 0 ? Math.round((totalScore / totalWeight) * 100) : 0;
   }
 
   /**

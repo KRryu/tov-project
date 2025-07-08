@@ -21,7 +21,284 @@ import {
 import confetti from 'canvas-confetti';
 
 const HopefulEvaluationResults = ({ evaluationResult }) => {
-  const { score = 0, details = {}, recommendations = [], passPreScreening } = evaluationResult || {};
+  // 백엔드 데이터 구조에 맞게 데이터 추출
+  const extractData = (result) => {
+    console.log('🔍 받은 평가 결과 원본:', JSON.stringify(result, null, 2));
+    
+    if (!result) return {};
+    
+    // 백엔드에서 반환하는 구조 처리
+    const actualResult = result.data || result;
+    const score = actualResult.score || 0;
+    const passPreScreening = actualResult.eligible || actualResult.passPreScreening || false;
+    const recommendations = actualResult.recommendations || [];
+    const details = actualResult.details || {};
+    
+    console.log('📊 actualResult:', actualResult);
+    console.log('📊 details:', details);
+    
+    // 실제 백엔드 응답 구조에서 데이터 추출
+    const evaluationDetails = actualResult.evaluationDetails || {};
+    const applicationType = actualResult.applicationType || evaluationDetails.applicationType || 'NEW';
+    
+    let academicQualification, teachingExperience, researchCapability, languageSkills, ageEvaluation, institutionStatus, institutionalSupport;
+    
+    // 신규 신청, 연장 신청, 변경 신청의 데이터 구조가 다름
+    if (applicationType === 'CHANGE' && details) {
+      // 변경 신청의 경우 평가 항목
+      console.log('🔄 변경 신청 데이터:', details);
+      
+      // 변경 신청의 평가 항목
+      academicQualification = {
+        score: details.changeability?.score || 0,
+        maxScore: details.changeability?.maxScore || 30,
+        details: {
+          changeability: {
+            score: details.changeability?.score || 0,
+            message: `변경 가능성: ${details.changeability?.score || 0}/${details.changeability?.maxScore || 30}점`
+          }
+        }
+      };
+      
+      teachingExperience = {
+        score: details.stayHistory?.score || 0,
+        maxScore: details.stayHistory?.maxScore || 20,
+        details: {
+          stayHistory: {
+            score: details.stayHistory?.score || 0,
+            message: `체류 이력: ${details.stayHistory?.score || 0}/${details.stayHistory?.maxScore || 20}점`
+          }
+        }
+      };
+      
+      researchCapability = {
+        score: details.newRequirements?.score || 0,
+        maxScore: details.newRequirements?.maxScore || 30,
+        details: {
+          requirements: {
+            score: details.newRequirements?.score || 0,
+            message: `새 비자 요건: ${details.newRequirements?.score || 0}/${details.newRequirements?.maxScore || 30}점`
+          }
+        }
+      };
+      
+      languageSkills = {
+        score: details.reason?.score || 0,
+        maxScore: details.reason?.maxScore || 10,
+        details: {
+          reason: {
+            score: details.reason?.score || 0,
+            message: `변경 사유: ${details.reason?.score || 0}/${details.reason?.maxScore || 10}점`
+          }
+        }
+      };
+      
+      institutionalSupport = {
+        score: details.documents?.score || 0,
+        maxScore: details.documents?.maxScore || 10,
+        details: {
+          documents: {
+            score: details.documents?.score || 0,
+            message: `문서 준비: ${details.documents?.score || 0}/${details.documents?.maxScore || 10}점`
+          }
+        }
+      };
+      
+    } else if (applicationType === 'EXTENSION' && (details || evaluationDetails)) {
+      // 연장 신청의 경우 다른 평가 항목을 사용
+      console.log('🔄 연장 신청 데이터:', details);
+      console.log('📊 evaluationDetails:', evaluationDetails);
+      console.log('📊 actualResult:', actualResult);
+      
+      // 백엔드에서 evaluationDetails.scores 또는 details에 데이터를 반환
+      const scores = evaluationDetails?.scores || actualResult?.scores || details || {};
+      console.log('📊 scores 객체:', scores);
+      
+      // 연장 신청의 평가 항목
+      academicQualification = {
+        score: scores.stayHistory?.score || 0,
+        maxScore: scores.stayHistory?.maxScore || 40,
+        details: {
+          history: {
+            score: scores.stayHistory?.score || 0,
+            message: `체류 이력: ${scores.stayHistory?.score || 0}/${scores.stayHistory?.maxScore || 40}점`
+          },
+          ...scores.stayHistory?.details
+        }
+      };
+      
+      teachingExperience = {
+        score: scores.performance?.score || 0,
+        maxScore: scores.performance?.maxScore || 30,
+        details: {
+          performance: {
+            score: scores.performance?.score || 0,
+            message: `활동 실적: ${scores.performance?.score || 0}/${scores.performance?.maxScore || 30}점`
+          },
+          ...scores.performance?.details
+        }
+      };
+      
+      // 계약 연속성 평가 - 백엔드에서 contractContinuity와 continuity 둘 다 사용
+      researchCapability = {
+        score: scores.contractContinuity?.score || scores.continuity?.score || 0,
+        maxScore: scores.contractContinuity?.maxScore || scores.continuity?.maxScore || 20,
+        details: {
+          continuity: {
+            score: scores.contractContinuity?.score || scores.continuity?.score || 0,
+            message: `계약 연속성: ${scores.contractContinuity?.score || scores.continuity?.score || 0}/${scores.contractContinuity?.maxScore || scores.continuity?.maxScore || 20}점`
+          },
+          messages: scores.contractContinuity?.details?.messages || scores.continuity?.details?.messages || [],
+          employerChanges: scores.contractContinuity?.details?.employerChanges || scores.continuity?.details?.employerChanges || 0,
+          salaryProgression: scores.contractContinuity?.details?.salaryProgression || scores.continuity?.details?.salaryProgression || 'STABLE'
+        }
+      };
+      
+      // 문서 제출 평가
+      languageSkills = {
+        score: scores.documents?.score || 0,
+        maxScore: scores.documents?.maxScore || 10,
+        details: {
+          documents: {
+            score: scores.documents?.score || 0,
+            message: `문서 제출: ${scores.documents?.score || 0}/${scores.documents?.maxScore || 10}점`
+          },
+          messages: scores.documents?.details?.messages || [],
+          checked: scores.documents?.details?.checked || [],
+          missing: scores.documents?.details?.missing || [],
+          submitted: scores.documents?.details?.submitted || false
+        }
+      };
+      
+      // 연장의 경우 나머지 항목은 0으로 설정
+      ageEvaluation = { score: 0, maxScore: 0, details: {} };
+      institutionStatus = { score: 0, maxScore: 0, details: {} };
+      institutionalSupport = { score: 0, maxScore: 0, details: {} };
+      
+    } else {
+      // 신규 신청의 경우 기존 로직 사용
+      const expertiseScores = evaluationDetails.details?.scores?.expertise?.details || {};
+      console.log('🎯 expertise 점수:', expertiseScores);
+      
+      academicQualification = {
+        score: expertiseScores.education || 0,
+        maxScore: 25,
+        details: {
+          degree: {
+            score: expertiseScores.education || 0,
+            message: `교육 점수: ${expertiseScores.education || 0}점`
+          }
+        }
+      };
+      
+      teachingExperience = {
+        score: expertiseScores.experience || 0,
+        maxScore: 30,
+        details: {
+          years: {
+            score: expertiseScores.experience || 0,
+            message: `경력 점수: ${expertiseScores.experience || 0}점`
+          }
+        }
+      };
+      
+      researchCapability = {
+        score: expertiseScores.research || 0,
+        maxScore: 15,
+        details: {
+          research: {
+            score: expertiseScores.research || 0,
+            message: `연구 점수: ${expertiseScores.research || 0}점`
+          }
+        }
+      };
+      
+      languageSkills = {
+        score: expertiseScores.korean || 0,
+        maxScore: 10,
+        details: {
+          korean: {
+            score: expertiseScores.korean || 0,
+            message: `한국어 점수: ${expertiseScores.korean || 0}점`
+          }
+        }
+      };
+      
+      ageEvaluation = {
+        score: expertiseScores.age || 0,
+        maxScore: 10,
+        details: {
+          age: {
+            score: expertiseScores.age || 0,
+            message: `연령 점수: ${expertiseScores.age || 0}점`
+          }
+        }
+      };
+      
+      institutionStatus = {
+        score: expertiseScores.institution || 0,
+        maxScore: 10,
+        details: {
+          institution: {
+            score: expertiseScores.institution || 0,
+            message: `기관 점수: ${expertiseScores.institution || 0}점`
+          }
+        }
+      };
+      
+      // 신규 신청의 경우 institutionalSupport는 사용하지 않음
+      institutionalSupport = { score: 0, maxScore: 0, details: {} };
+    }
+    
+    const extracted = {
+      score,
+      passPreScreening,
+      recommendations: actualResult.recommendations || evaluationDetails.recommendations || [],
+      details,
+      // 백엔드 데이터 구조에 맞게 수정
+      scoreBreakdown: actualResult.scoreBreakdown || {},
+      evaluationDetails: evaluationDetails,
+      growthPotential: actualResult.growthPotential || {},
+      comprehensive: actualResult.comprehensive || {},
+      manualScoreCheck: actualResult.manualScoreCheck || {},
+      improvementRoadmap: actualResult.improvementRoadmap || {},
+      risks: actualResult.risks || [],
+      // 각 평가 항목 추가
+      academicQualification,
+      teachingExperience,
+      researchCapability,
+      languageSkills,
+      ageEvaluation,
+      institutionStatus,
+      institutionalSupport: institutionalSupport || {}
+    };
+    
+    console.log('✅ 추출된 데이터:', extracted);
+    
+    return extracted;
+  };
+
+  const extractedData = extractData(evaluationResult);
+  const { 
+    score = 0, 
+    details = {}, 
+    recommendations = [], 
+    passPreScreening = false,
+    scoreBreakdown = {},
+    evaluationDetails = {},
+    growthPotential = {},
+    comprehensive = {},
+    manualScoreCheck = {},
+    improvementRoadmap = {},
+    risks = [],
+    academicQualification = {},
+    teachingExperience = {},
+    researchCapability = {},
+    languageSkills = {},
+    ageEvaluation = {},
+    institutionStatus = {},
+    institutionalSupport = {}
+  } = extractedData;
 
   // 점수에 따라 confetti 효과
   React.useEffect(() => {
@@ -36,35 +313,79 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
 
   if (!evaluationResult) return null;
 
+  // 신청 유형 확인
+  const applicationType = extractedData.applicationType || evaluationResult?.applicationType || 'NEW';
+  
   // 스파이더 차트용 데이터 (백분율로 표시)
   const radarData = [];
   
-  // scoreBreakdown이 있으면 우선 사용
-  if (evaluationResult.scoreBreakdown && evaluationResult.scoreBreakdown.categories) {
-    Object.entries(evaluationResult.scoreBreakdown.categories).forEach(([key, categoryData]) => {
-      radarData.push({
-        category: categoryData.name || getCategoryName(key),
-        value: categoryData.percentage || 0,
-        actualScore: categoryData.score,
-        maxScore: categoryData.maxScore,
-        fullMark: 100
-      });
-    });
-  } else {
-    // 기존 방식 fallback
-    Object.entries(details).forEach(([key, value]) => {
-      if (value.score !== undefined && value.maxScore) {
-        const percentage = Math.round((value.score / value.maxScore) * 100);
+  // 신청 유형에 따른 평가 항목 설정
+  const evaluationCategories = applicationType === 'CHANGE' ? [
+    { key: 'academicQualification', data: academicQualification, name: '변경 가능성' },
+    { key: 'teachingExperience', data: teachingExperience, name: '체류 이력' },
+    { key: 'researchCapability', data: researchCapability, name: '새 비자 요건' },
+    { key: 'languageSkills', data: languageSkills, name: '변경 사유' },
+    { key: 'institutionalSupport', data: institutionalSupport, name: '문서 준비' }
+     ] : applicationType === 'EXTENSION' ? [
+     { key: 'stayHistory', data: academicQualification, name: '체류 이력' },
+     { key: 'performance', data: teachingExperience, name: '활동 실적' },
+     { key: 'contractContinuity', data: researchCapability, name: '계약 연속성' },
+     { key: 'documents', data: languageSkills, name: '문서 제출' }
+  ] : [
+    { key: 'academicQualification', data: academicQualification, name: '학술 자격' },
+    { key: 'teachingExperience', data: teachingExperience, name: '교육 경험' },
+    { key: 'researchCapability', data: researchCapability, name: '연구 역량' },
+    { key: 'languageSkills', data: languageSkills, name: '언어 능력' },
+    { key: 'ageEvaluation', data: ageEvaluation, name: '안정성' },
+    { key: 'institutionStatus', data: institutionStatus, name: '기관 적합성' }
+  ];
+  
+  console.log(`📊 ${applicationType} 평가 카테고리:`, evaluationCategories);
+  
+  // 연장 신청의 경우 100점 만점 기준으로 변환
+  if (applicationType === 'EXTENSION') {
+    evaluationCategories.forEach(({ key, data, name }) => {
+      if (data && data.score !== undefined && data.maxScore && data.maxScore > 0) {
+        // 각 항목을 100점 만점으로 변환
+        let normalizedScore;
+        if (name === '체류 이력') {
+          normalizedScore = Math.round((data.score / 40) * 100); // 40점 만점 -> 100점 만점
+        } else if (name === '활동 실적') {
+          normalizedScore = Math.round((data.score / 30) * 100); // 30점 만점 -> 100점 만점
+        } else if (name === '계약 연속성') {
+          normalizedScore = Math.round((data.score / 20) * 100); // 20점 만점 -> 100점 만점
+        } else if (name === '문서 제출') {
+          normalizedScore = Math.round((data.score / 10) * 100); // 10점 만점 -> 100점 만점
+        }
+        
         radarData.push({
-          category: getCategoryName(key),
-          value: percentage,
-          actualScore: value.score,
-          maxScore: value.maxScore,
+          category: name,
+          value: normalizedScore,
+          actualScore: data.score,
+          maxScore: data.maxScore,
           fullMark: 100
         });
+        console.log(`✅ ${name}: ${data.score}/${data.maxScore} (${normalizedScore}%)`);
+      }
+    });
+  } else {
+    // 다른 신청 유형은 기존 로직 유지
+    evaluationCategories.forEach(({ key, data, name }) => {
+      if (data && data.score !== undefined && data.maxScore && data.maxScore > 0) {
+        const percentage = Math.round((data.score / data.maxScore) * 100);
+        radarData.push({
+          category: name,
+          value: percentage,
+          actualScore: data.score,
+          maxScore: data.maxScore,
+          fullMark: 100
+        });
+        console.log(`✅ ${name}: ${data.score}/${data.maxScore} (${percentage}%)`);
       }
     });
   }
+  
+  console.log('📈 스파이더 차트 데이터:', radarData);
 
   // 점수에 따른 메시지와 색상
   const getScoreInfo = (score) => {
@@ -105,20 +426,42 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
   const scoreInfo = getScoreInfo(score);
   
   // 종합 평가 데이터 (고도화된 평가 결과 활용) - 먼저 정의
-  const comprehensiveData = evaluationResult.comprehensive || null;
+  const comprehensiveData = comprehensive || 
+                          evaluationDetails?.comprehensive || 
+                          evaluationDetails || null;
 
   // 개선 가능 점수 계산 (성장 가능성 기반)
   const calculateImprovableScore = () => {
+    console.log('전체 평가 데이터:', JSON.stringify(extractedData, null, 2));
+    
+    // 추출된 growthPotential 데이터에서 가져오기
+    if (growthPotential && growthPotential.score !== undefined) {
+      console.log('growthPotential 발견:', growthPotential);
+      const growthScore = growthPotential.score || 0;
+      // 성장 잠재력을 실제 점수로 환산 (10점 만점을 100점 기준으로)
+      return Math.round((growthScore / (growthPotential.maxScore || 10)) * 20);
+    }
+    
     // comprehensive 데이터에서 성장 가능성 가져오기
     if (comprehensiveData && comprehensiveData.growthPotential) {
+      console.log('comprehensive에서 growthPotential 발견:', comprehensiveData.growthPotential);
       return comprehensiveData.growthPotential.totalPotential || 0;
     }
     
     // scoreBreakdown에서 성장 가능성 가져오기
-    if (evaluationResult.scoreBreakdown && evaluationResult.scoreBreakdown.details) {
-      return evaluationResult.scoreBreakdown.details.growthPotential || 0;
+    if (scoreBreakdown && scoreBreakdown.details) {
+      console.log('scoreBreakdown에서 growthPotential 발견:', scoreBreakdown.details.growthPotential);
+      return scoreBreakdown.details.growthPotential || 0;
     }
     
+    // evaluationDetails에서 성장 가능성 가져오기
+    if (evaluationDetails && evaluationDetails.comprehensive && evaluationDetails.comprehensive.growthPotential) {
+      console.log('evaluationDetails에서 growthPotential 발견:', evaluationDetails.comprehensive.growthPotential);
+      const growthData = evaluationDetails.comprehensive.growthPotential;
+      return growthData.totalPotential || 0;
+    }
+    
+    console.log('growthPotential 데이터를 찾을 수 없음, 기본 계산 사용');
     // 기본 계산 (100점에서 현재 점수 빼기)
     return Math.max(0, 100 - score);
   };
@@ -223,7 +566,7 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
         </motion.div>
         
         {/* 점수 구성 상세 */}
-        {evaluationResult.scoreBreakdown && evaluationResult.scoreBreakdown.details && (
+        {scoreBreakdown && scoreBreakdown.details && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -231,9 +574,9 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
             className="mb-4 text-sm text-gray-600"
           >
             <div className="flex justify-center items-center gap-4">
-              <span>매뉴얼 점수: {evaluationResult.scoreBreakdown.details.manualPoints}점</span>
+              <span>매뉴얼 점수: {scoreBreakdown.details.manualPoints}점</span>
               <span>+</span>
-              <span>추가 평가: {evaluationResult.scoreBreakdown.details.bonusPoints}점</span>
+              <span>추가 평가: {scoreBreakdown.details.bonusPoints}점</span>
               <span>=</span>
               <span className="font-bold">총점: {score}점</span>
             </div>
@@ -311,6 +654,113 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
             </ResponsiveContainer>
           </div>
           
+          {/* 백엔드에서 계산한 상세 분석 정보 표시 */}
+          {(academicQualification.score !== undefined || teachingExperience.score !== undefined || researchCapability.score !== undefined) && (
+            <div className="mt-4 space-y-3">
+              <h4 className="text-sm font-semibold text-gray-800 mb-2">📊 항목별 상세 분석</h4>
+              
+                             {/* 첫 번째 평가 항목 */}
+               {academicQualification.score !== undefined && (
+                 <div className="p-3 bg-blue-50 rounded-lg">
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-sm font-medium text-blue-800">
+                       {applicationType === 'EXTENSION' ? '체류 이력' : 
+                        applicationType === 'CHANGE' ? '변경 가능성' : '학술 자격'}
+                     </span>
+                     <span className="text-sm font-bold text-blue-900">
+                       {academicQualification.score}/
+                       {academicQualification.maxScore}점
+                     </span>
+                   </div>
+                   {academicQualification.details && 
+                    Object.entries(academicQualification.details).map(([key, detail], idx) => (
+                     <div key={idx} className="text-xs text-blue-700 mt-1">
+                       • {detail.message} ({detail.score}점)
+                     </div>
+                   ))}
+                 </div>
+               )}
+               
+               {/* 두 번째 평가 항목 */}
+               {teachingExperience.score !== undefined && (
+                 <div className="p-3 bg-green-50 rounded-lg">
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-sm font-medium text-green-800">
+                       {applicationType === 'EXTENSION' ? '활동 실적' : 
+                        applicationType === 'CHANGE' ? '체류 이력' : '교육 경험'}
+                     </span>
+                     <span className="text-sm font-bold text-green-900">
+                       {teachingExperience.score}/
+                       {teachingExperience.maxScore}점
+                     </span>
+                   </div>
+                   {teachingExperience.details && 
+                    Object.entries(teachingExperience.details).map(([key, detail], idx) => (
+                     <div key={idx} className="text-xs text-green-700 mt-1">
+                       • {detail.message} ({detail.score}점)
+                     </div>
+                   ))}
+                 </div>
+               )}
+               
+               {/* 세 번째 평가 항목 */}
+               {researchCapability.score !== undefined && (
+                 <div className="p-3 bg-purple-50 rounded-lg">
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-sm font-medium text-purple-800">
+                       {applicationType === 'EXTENSION' ? '계약 연속성' : 
+                        applicationType === 'CHANGE' ? '새 비자 요건' : '연구 역량'}
+                     </span>
+                     <span className="text-sm font-bold text-purple-900">
+                       {researchCapability.score}/
+                       {researchCapability.maxScore}점
+                     </span>
+                   </div>
+                   {researchCapability.details && 
+                    Object.entries(researchCapability.details).map(([key, detail], idx) => (
+                     <div key={idx} className="text-xs text-purple-700 mt-1">
+                       • {detail.message || `${key}: ${detail.count || detail.score}점`}
+                     </div>
+                   ))}
+                   {/* 계약 연속성 상세 메시지 표시 */}
+                   {researchCapability.details?.messages && researchCapability.details.messages.map((message, idx) => (
+                     <div key={`msg-${idx}`} className="text-xs text-purple-700 mt-1">
+                       • {message}
+                     </div>
+                   ))}
+                 </div>
+               )}
+               
+               {/* 네 번째 평가 항목 */}
+               {languageSkills.score !== undefined && (
+                 <div className="p-3 bg-yellow-50 rounded-lg">
+                   <div className="flex justify-between items-center mb-1">
+                     <span className="text-sm font-medium text-yellow-800">
+                       {applicationType === 'EXTENSION' ? '문서 제출' : 
+                        applicationType === 'CHANGE' ? '변경 사유' : '언어 능력'}
+                     </span>
+                     <span className="text-sm font-bold text-yellow-900">
+                       {languageSkills.score}/
+                       {languageSkills.maxScore}점
+                     </span>
+                   </div>
+                   {languageSkills.details && 
+                    Object.entries(languageSkills.details).map(([key, detail], idx) => (
+                     <div key={idx} className="text-xs text-yellow-700 mt-1">
+                       • {detail.message} ({detail.score}점)
+                     </div>
+                   ))}
+                   {/* 문서 제출 상세 메시지 표시 */}
+                   {languageSkills.details?.messages && languageSkills.details.messages.map((message, idx) => (
+                     <div key={`doc-${idx}`} className="text-xs text-yellow-700 mt-1">
+                       • {message}
+                     </div>
+                   ))}
+                 </div>
+               )}
+            </div>
+          )}
+          
           {/* 강점 분석 */}
           {strengths.length > 0 && (
             <div className="mt-4 p-3 bg-green-50 rounded-lg">
@@ -340,42 +790,84 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
             성장 가능성
           </h3>
           <div className="space-y-4">
-            {Object.entries(details).map(([key, value]) => {
-              if (!value || typeof value !== 'object' || !value.maxScore) return null;
-              
-              const currentScore = value.score || 0;
-              const maxScore = value.maxScore || 0;
-              const potential = maxScore - currentScore;
-              
-              if (potential <= 0 || maxScore <= 0) return null;
-              
-              return (
-                <div key={key} className="space-y-2">
+            {/* 백엔드에서 계산한 성장 가능성 데이터 사용 */}
+            {growthPotential && growthPotential.factors ? (
+              growthPotential.factors.map((factor, index) => (
+                <div key={index} className="space-y-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium text-gray-700">{getCategoryName(key)}</span>
-                    <span className="text-sm text-green-600 font-semibold">+{Math.round(potential)}점 가능</span>
+                    <span className="text-sm font-medium text-gray-700">{factor.action}</span>
+                    <span className="text-sm text-green-600 font-semibold">+{factor.realPoints}점 (예상 {factor.timeframe})</span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2">
                     <motion.div
                       initial={{ width: 0 }}
-                      animate={{ width: `${(currentScore / maxScore) * 100}%` }}
+                      animate={{ width: `${factor.potential}%` }}
                       transition={{ delay: 0.5, duration: 1 }}
-                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full relative"
-                    >
-                      <div 
-                        className="absolute right-0 top-0 h-2 bg-green-300 opacity-50 rounded-full"
-                        style={{ width: `${(potential / maxScore) * 100}%` }}
-                      />
-                    </motion.div>
+                      className={`bg-gradient-to-r h-2 rounded-full ${
+                        factor.difficulty === 'high' ? 'from-red-500 to-orange-500' :
+                        factor.difficulty === 'medium' ? 'from-yellow-500 to-green-500' :
+                        'from-green-500 to-blue-500'
+                      }`}
+                    />
                   </div>
                   <div className="flex justify-between text-xs text-gray-500 mt-1">
-                    <span>현재: {Math.round(currentScore)}점</span>
-                    <span>최대: {Math.round(maxScore)}점</span>
+                    <span>난이도: {factor.difficulty === 'high' ? '높음' : factor.difficulty === 'medium' ? '보통' : '낮음'}</span>
+                    <span>잠재력: {factor.potential}%</span>
                   </div>
                 </div>
-              );
-            })}
+              ))
+            ) : (
+              // 백엔드 데이터가 없을 때 기존 로직 사용
+              Object.entries(details).map(([key, value]) => {
+                if (!value || typeof value !== 'object' || !value.maxScore) return null;
+                
+                const currentScore = value.score || 0;
+                const maxScore = value.maxScore || 0;
+                const potential = maxScore - currentScore;
+                
+                if (potential <= 0 || maxScore <= 0) return null;
+                
+                return (
+                  <div key={key} className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-gray-700">{getCategoryName(key)}</span>
+                      <span className="text-sm text-green-600 font-semibold">+{Math.round(potential)}점 가능</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <motion.div
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(currentScore / maxScore) * 100}%` }}
+                        transition={{ delay: 0.5, duration: 1 }}
+                        className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full relative"
+                      >
+                        <div 
+                          className="absolute right-0 top-0 h-2 bg-green-300 opacity-50 rounded-full"
+                          style={{ width: `${(potential / maxScore) * 100}%` }}
+                        />
+                      </motion.div>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500 mt-1">
+                      <span>현재: {Math.round(currentScore)}점</span>
+                      <span>최대: {Math.round(maxScore)}점</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
+          
+          {/* 성장 가능성 요약 */}
+          {growthPotential && (
+            <div className="mt-6 p-4 bg-green-50 rounded-lg">
+              <h4 className="text-sm font-semibold text-green-800 mb-2">💡 성장 잠재력 요약</h4>
+              <p className="text-sm text-green-700">
+                현재 점수에서 최대 <span className="font-bold">{growthPotential.totalPotential || improvableScore}점</span>을 추가로 확보할 수 있습니다.
+                {growthPotential.remainingScore && (
+                  <span> (100점 기준 {growthPotential.remainingScore}점까지 향상 가능)</span>
+                )}
+              </p>
+            </div>
+          )}
         </motion.div>
       </div>
 
@@ -477,15 +969,15 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
       </motion.div>
 
       {/* 매뉴얼 기준 점수 확인 */}
-      {comprehensiveData && comprehensiveData.manualScoreCheck && (
+      {(manualScoreCheck && manualScoreCheck.passed !== undefined) && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45 }}
           className={`${
-            comprehensiveData.manualScoreCheck.passed ? 'bg-green-50' : 'bg-yellow-50'
+            manualScoreCheck.passed ? 'bg-green-50' : 'bg-yellow-50'
           } rounded-xl shadow-lg p-6 border-2 ${
-            comprehensiveData.manualScoreCheck.passed ? 'border-green-300' : 'border-yellow-300'
+            manualScoreCheck.passed ? 'border-green-300' : 'border-yellow-300'
           }`}
         >
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
@@ -497,21 +989,21 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-2xl font-bold text-gray-800">
-                {comprehensiveData.manualScoreCheck.actualScore} / {comprehensiveData.manualScoreCheck.minimumRequired}점
+                {manualScoreCheck.actualScore} / {manualScoreCheck.minimumRequired}점
               </p>
               <p className={`text-sm mt-1 ${
-                comprehensiveData.manualScoreCheck.passed ? 'text-green-700' : 'text-yellow-700'
+                manualScoreCheck.passed ? 'text-green-700' : 'text-yellow-700'
               }`}>
-                {comprehensiveData.manualScoreCheck.message}
+                {manualScoreCheck.message}
               </p>
             </div>
             <div className={`text-4xl ${
-              comprehensiveData.manualScoreCheck.passed ? 'text-green-500' : 'text-yellow-500'
+              manualScoreCheck.passed ? 'text-green-500' : 'text-yellow-500'
             }`}>
-              {comprehensiveData.manualScoreCheck.passed ? '✅' : '⚠️'}
+              {manualScoreCheck.passed ? '✅' : '⚠️'}
             </div>
           </div>
-          {!comprehensiveData.manualScoreCheck.passed && (
+          {!manualScoreCheck.passed && (
             <p className="text-sm text-gray-600 mt-3">
               💡 팁: 학력, 직급, 경력을 통해 추가 점수를 획득할 수 있습니다.
             </p>
@@ -570,7 +1062,7 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
             )}
             
             {/* 성장 가능성 */}
-            {comprehensiveData.growthPotential && (
+            {(growthPotential || comprehensiveData?.growthPotential) && (
               <div className="bg-white rounded-lg p-4">
                 <h4 className="font-semibold text-gray-800 mb-3 flex items-center">
                   <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -579,10 +1071,32 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
                   성장 잠재력
                 </h4>
                 <p className="text-2xl font-bold text-purple-600 mb-2">
-                  +{comprehensiveData.growthPotential.totalPotential}점 가능
+                  +{improvableScore}점 가능
                 </p>
                 <div className="space-y-2">
-                  {comprehensiveData.growthPotential.priorityActions?.slice(0, 3).map((action, idx) => (
+                  {growthPotential?.details && (
+                    <>
+                      {growthPotential.details.agePotential && (
+                        <div className="text-xs bg-purple-50 p-2 rounded">
+                          <p className="font-medium text-gray-700">연령 요인</p>
+                          <div className="flex justify-between text-gray-500 mt-1">
+                            <span>{growthPotential.details.agePotential.message}</span>
+                            <span className="font-semibold text-purple-600">+{growthPotential.details.agePotential.score}점</span>
+                          </div>
+                        </div>
+                      )}
+                      {growthPotential?.details.researchActivity && (
+                        <div className="text-xs bg-purple-50 p-2 rounded">
+                          <p className="font-medium text-gray-700">연구 활동</p>
+                          <div className="flex justify-between text-gray-500 mt-1">
+                            <span>{growthPotential.details.researchActivity.message}</span>
+                            <span className="font-semibold text-purple-600">+{growthPotential.details.researchActivity.score}점</span>
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                  {comprehensiveData?.growthPotential?.priorityActions?.slice(0, 3).map((action, idx) => (
                     <div key={idx} className="text-xs bg-purple-50 p-2 rounded">
                       <p className="font-medium text-gray-700">{action.action}</p>
                       <div className="flex justify-between text-gray-500 mt-1">
@@ -600,7 +1114,7 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
           </div>
           
           {/* 리스크 경고 */}
-          {comprehensiveData.risks && comprehensiveData.risks.length > 0 && (
+          {((risks && risks.length > 0) || (comprehensiveData?.risks && comprehensiveData.risks.length > 0)) && (
             <div className="mt-6 p-4 bg-amber-50 rounded-lg border border-amber-200">
               <h4 className="font-semibold text-amber-800 mb-2 flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -609,10 +1123,10 @@ const HopefulEvaluationResults = ({ evaluationResult }) => {
                 주의사항
               </h4>
               <div className="space-y-2">
-                {comprehensiveData.risks.slice(0, 2).map((risk, idx) => (
+                {(risks || comprehensiveData?.risks || []).slice(0, 2).map((risk, idx) => (
                   <div key={idx} className="text-sm">
-                    <p className="font-medium text-amber-700">{risk.description}</p>
-                    <p className="text-xs text-amber-600">→ {risk.mitigation}</p>
+                    <p className="font-medium text-amber-700">{risk.message || risk.description}</p>
+                    <p className="text-xs text-amber-600">→ {risk.impact || risk.mitigation}</p>
                   </div>
                 ))}
               </div>

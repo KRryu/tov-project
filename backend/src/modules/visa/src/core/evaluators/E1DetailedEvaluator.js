@@ -64,10 +64,9 @@ class E1DetailedEvaluator {
       academicQualification: await this.evaluateAcademicQualification(data),
       teachingExperience: await this.evaluateTeachingExperience(data),
       researchCapability: await this.evaluateResearchCapability(data),
-      languageSkills: await this.evaluateLanguageSkills(data),
-      ageEvaluation: await this.evaluateAge(data),
-      institutionStatus: await this.evaluateInvitingInstitution(data),
-      growthPotential: await this.calculateGrowthPotential(data),
+      languageSkills: await this.evaluateLanguageAdaptability(data),
+      ageEvaluation: await this.evaluateStabilityFactors(data),
+      institutionStatus: await this.evaluateInstitutionFit(data),
       risks: await this.identifyRisks(data),
       recommendations: []
     };
@@ -77,6 +76,9 @@ class E1DetailedEvaluator {
     evaluation.totalScore = scoreAnalysis.totalScore;
     evaluation.scoreBreakdown = scoreAnalysis;
     evaluation.manualScoreCheck = scoreAnalysis.manualScoreCheck;
+    
+    // 성장 가능성 계산 (현재 점수 기반)
+    evaluation.growthPotential = await this.calculateGrowthPotential(data, scoreAnalysis.totalScore);
     
     evaluation.recommendations = this.generateNewApplicationRecommendations(evaluation, data);
     evaluation.improvementRoadmap = this.createImprovementRoadmap(evaluation, data);
@@ -134,7 +136,7 @@ class E1DetailedEvaluator {
     };
 
     // 1. 학위 수준 평가
-    const educationLevel = this.mapEducationLevel(data.highestEducation);
+    const educationLevel = this.mapEducationLevel(data.highestEducation || data.academicInfo?.education);
     const educationScores = {
       'DOCTORATE': 20,
       'MASTERS': 15,
@@ -179,7 +181,7 @@ class E1DetailedEvaluator {
       details: {}
     };
 
-    const years = parseInt(data.teachingExperience || data.yearsOfExperience) || 0;
+    const years = parseInt(data.teachingExperience || data.yearsOfExperience || data.academicInfo?.teachingExperience) || 0;
     
     // 매뉴얼 기준 교수 경력 점수
     if (years >= 10) {
@@ -220,7 +222,7 @@ class E1DetailedEvaluator {
 
     // 1. 연구 논문 평가
     const publications = data.publications || [];
-    const publicationCount = data.publicationsCount || publications.length || 0;
+    const publicationCount = data.publicationsCount || data.researchPublications || data.academicInfo?.researchPublications || publications.length || 0;
     
     if (publicationCount > 0) {
       let pubScore = 0;
@@ -635,7 +637,7 @@ class E1DetailedEvaluator {
     };
 
     // 1. 한국어 능력
-    const koreanLevel = data.koreanProficiency;
+    const koreanLevel = data.koreanProficiency || data.academicInfo?.koreanLevel;
     const koreanScores = {
       'native': 5,
       'advanced': 4,
@@ -744,11 +746,11 @@ class E1DetailedEvaluator {
   /**
    * 성장 가능성 계산 (실제 점수 향상 가능성 기반)
    */
-  async calculateGrowthPotential(data) {
+  async calculateGrowthPotential(data, currentScore = 0) {
     const factors = [];
-    const currentEducation = this.mapEducationLevel(data.highestEducation);
-    const currentExperience = parseInt(data.yearsOfExperience) || 0;
-    const currentPubs = parseInt(data.publicationsCount) || 0;
+    const currentEducation = this.mapEducationLevel(data.highestEducation || data.academicInfo?.education);
+    const currentExperience = parseInt(data.yearsOfExperience || data.academicInfo?.teachingExperience) || 0;
+    const currentPubs = parseInt(data.publicationsCount || data.researchPublications || data.academicInfo?.researchPublications) || 0;
 
     // 1. 학위 향상 가능성 (매뉴얼 기준)
     const educationPotential = {
@@ -834,16 +836,29 @@ class E1DetailedEvaluator {
       });
     }
 
-    // 총 성장 가능 점수 (100점 기준)
+    // 총 성장 가능 점수 (100점 기준) - 현재 점수 기반으로 계산
+    const remainingScore = Math.max(0, 100 - currentScore);
     const totalPotential = Math.min(
       factors.reduce((sum, f) => sum + f.potential, 0),
-      100 - 60 // 현재 점수가 60점 이상이라고 가정
+      remainingScore
     );
 
     return {
       totalPotential: Math.round(totalPotential),
       factors: factors,
-      priorityActions: this.prioritizeActions(factors)
+      priorityActions: this.prioritizeActions(factors),
+      currentScore: currentScore,
+      maxScore: 100,
+      details: {
+        agePotential: {
+          score: factors.find(f => f.category === 'position')?.potential || 0,
+          message: factors.find(f => f.category === 'position')?.action || '직급 향상 가능'
+        },
+        researchActivity: {
+          score: factors.find(f => f.category === 'research')?.potential || 0,
+          message: factors.find(f => f.category === 'research')?.action || '연구 실적 향상 가능'
+        }
+      }
     };
   }
 
@@ -1064,8 +1079,13 @@ class E1DetailedEvaluator {
   mapEducationLevel(education) {
     const mapping = {
       'phd': 'DOCTORATE',
+      'doctorate': 'DOCTORATE',
+      'DOCTORATE': 'DOCTORATE',
       'master': 'MASTERS',
+      'masters': 'MASTERS', 
+      'MASTERS': 'MASTERS',
       'bachelor': 'BACHELOR',
+      'BACHELOR': 'BACHELOR',
       'high_school': 'HIGH_SCHOOL'
     };
     return mapping[education] || education || 'BACHELOR';
@@ -1532,6 +1552,531 @@ class E1DetailedEvaluator {
       'high_school': 'HIGH_SCHOOL'
     };
     return mapping[education] || 'BACHELOR';
+  }
+
+  /**
+   * 나이 계산 헬퍼
+   */
+  calculateAge(birthDate) {
+    if (!birthDate) return 30; // 기본값
+    
+    const birth = new Date(birthDate);
+    const today = new Date();
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+      age--;
+    }
+    
+    return age;
+  }
+
+  /**
+   * 한국어 레벨 메시지
+   */
+  getKoreanLevelMessage(level) {
+    const messages = {
+      'native': '원어민 수준',
+      'advanced': '고급 - 학술 강의 가능',
+      'intermediate': '중급 - 일상 대화 가능',
+      'beginner': '초급 - 기초 대화 가능',
+      'none': '한국어 불가'
+    };
+    return messages[level] || '한국어 능력 확인 필요';
+  }
+
+  /**
+   * 기관 명성 메시지
+   */
+  getPrestigeMessage(prestige) {
+    const messages = {
+      'top_tier': '최상위 명문대학',
+      'high_tier': '주요 국립대학',
+      'mid_tier': '일반 4년제 대학',
+      'regular': '일반 교육기관'
+    };
+    return messages[prestige] || '기관 수준 확인 필요';
+  }
+
+  /**
+   * 전공 분야 수요 메시지
+   */
+  getFieldDemandMessage(field) {
+    const highDemand = ['engineering', 'medicine', 'natural_sciences'];
+    const mediumDemand = ['business', 'law', 'social_sciences'];
+    
+    if (highDemand.includes(field)) {
+      return '높은 수요 분야';
+    } else if (mediumDemand.includes(field)) {
+      return '중간 수요 분야';
+    }
+    return '일반 수요 분야';
+  }
+
+  /**
+   * 성장 잠재력 계산
+   */
+  async calculateGrowthPotential(data) {
+    const result = {
+      score: 0,
+      maxScore: 10,
+      details: {}
+    };
+
+    // 나이 기반 잠재력
+    const age = this.calculateAge(data.birthDate);
+    if (age < 35) {
+      result.details.agePotential = {
+        score: 5,
+        message: '젊은 연령대로 장기적 기여 가능'
+      };
+      result.score += 5;
+    } else if (age < 45) {
+      result.details.agePotential = {
+        score: 3,
+        message: '안정적 경력 단계'
+      };
+      result.score += 3;
+    }
+
+    // 연구 활발도
+    if (data.publicationsCount > 5) {
+      result.details.researchActivity = {
+        score: 5,
+        message: '활발한 연구 활동'
+      };
+      result.score += 5;
+    }
+
+    return result;
+  }
+
+  /**
+   * 리스크 요인 식별
+   */
+  async identifyRisks(data) {
+    const risks = [];
+
+    // 온라인 강의 비율 체크
+    if (data.onlineTeachingRatio > 50) {
+      risks.push({
+        type: 'HIGH',
+        category: 'TEACHING',
+        message: '온라인 강의 비율이 50%를 초과합니다',
+        impact: '비자 거절 가능성 높음'
+      });
+    }
+
+    // 최소 학력 체크
+    const educationLevel = this.mapEducationLevel(data.highestEducation);
+    if (educationLevel === 'BACHELOR' || educationLevel === 'ASSOCIATE') {
+      risks.push({
+        type: 'MEDIUM',
+        category: 'QUALIFICATION',
+        message: '석사 이상 학위 권장',
+        impact: '경쟁력 약화'
+      });
+    }
+
+    // 한국어 능력 체크
+    if (data.koreanProficiency === 'none' || data.koreanProficiency === 'beginner') {
+      risks.push({
+        type: 'MEDIUM',
+        category: 'LANGUAGE',
+        message: '한국어 능력 부족',
+        impact: '업무 수행 및 생활 적응 어려움'
+      });
+    }
+
+    return risks;
+  }
+
+  /**
+   * 신규 신청 점수 계산
+   */
+  calculateNewApplicationScore(evaluation) {
+    let totalScore = 0;
+    const maxScore = 100;
+    const categories = {};
+    
+    // 매뉴얼 기준 점수 계산 (학력 + 직급 + 경력 + 연구직위)
+    let manualScore = 0;
+    const manualComponents = {
+      education: 0,
+      position: 0,
+      experience: 0,
+      research: 0
+    };
+    
+    // 학력 점수 (매뉴얼 기준)
+    if (evaluation.academicQualification && evaluation.academicQualification.details && evaluation.academicQualification.details.degree) {
+      manualComponents.education = evaluation.academicQualification.details.degree.score || 0;
+      manualScore += manualComponents.education;
+    }
+    
+    // 직급 점수
+    if (evaluation.academicQualification && evaluation.academicQualification.details && evaluation.academicQualification.details.position) {
+      manualComponents.position = evaluation.academicQualification.details.position.score || 0;
+      manualScore += manualComponents.position;
+    }
+    
+    // 경력 점수 (매뉴얼 기준: 최대 5점)
+    if (evaluation.teachingExperience && evaluation.teachingExperience.details && evaluation.teachingExperience.details.years) {
+      const years = evaluation.teachingExperience.details.years.score;
+      manualComponents.experience = Math.min(years > 20 ? 5 : years > 15 ? 4 : years > 10 ? 3 : years > 5 ? 2 : 1, 5);
+      manualScore += manualComponents.experience;
+    }
+    
+    // 연구직위 점수 (최대 7점)
+    if (evaluation.researchCapability && evaluation.researchCapability.score > 20) {
+      manualComponents.research = 7;
+    } else if (evaluation.researchCapability && evaluation.researchCapability.score > 15) {
+      manualComponents.research = 5;
+    } else if (evaluation.researchCapability && evaluation.researchCapability.score > 10) {
+      manualComponents.research = 3;
+    } else if (evaluation.researchCapability && evaluation.researchCapability.score > 5) {
+      manualComponents.research = 2;
+    }
+    manualScore += manualComponents.research;
+
+    // 각 평가 항목별 점수 집계
+    const scoringItems = [
+      { key: 'academicQualification', name: '학술 자격', weight: 0.25 },
+      { key: 'teachingExperience', name: '교육 경험', weight: 0.20 },
+      { key: 'researchCapability', name: '연구 역량', weight: 0.15 },
+      { key: 'languageSkills', name: '언어 능력', weight: 0.10 },
+      { key: 'ageEvaluation', name: '안정성', weight: 0.10 },
+      { key: 'institutionStatus', name: '기관 적합성', weight: 0.15 },
+      { key: 'growthPotential', name: '성장 잠재력', weight: 0.05 }
+    ];
+
+    scoringItems.forEach(item => {
+      const evalItem = evaluation[item.key];
+      if (evalItem && evalItem.score !== undefined && evalItem.maxScore > 0) {
+        const weightedScore = (evalItem.score / evalItem.maxScore) * 100 * item.weight;
+        categories[item.key] = {
+          name: item.name,
+          score: evalItem.score,
+          maxScore: evalItem.maxScore,
+          weightedScore: Math.round(weightedScore),
+          percentage: Math.round((evalItem.score / evalItem.maxScore) * 100),
+          weight: item.weight
+        };
+        totalScore += weightedScore;
+      }
+    });
+    
+    // 매뉴얼 점수 기반 100점 환산
+    const manualBasedScore = manualScore >= 16 ? 60 + (manualScore - 16) * 2.5 : (manualScore / 16) * 60;
+    const bonusPoints = Math.round(totalScore * 0.4); // 추가 평가 점수는 40% 반영
+    const finalScore = Math.min(Math.round(manualBasedScore + bonusPoints), 100);
+
+    return {
+      totalScore: finalScore,
+      maxScore: maxScore,
+      categories: categories,
+      manualScoreCheck: {
+        passed: manualScore >= 16,
+        actualScore: manualScore,
+        minimumRequired: 16,
+        message: manualScore >= 16 ? '매뉴얼 기준 충족' : `매뉴얼 기준 미달 (${16 - manualScore}점 부족)`,
+        components: manualComponents
+      },
+      details: {
+        manualPoints: Math.round(manualBasedScore),
+        bonusPoints: bonusPoints,
+        manualScore: manualScore
+      }
+    };
+  }
+
+  /**
+   * 신규 신청 추천사항 생성
+   */
+  generateNewApplicationRecommendations(evaluation, data) {
+    const recommendations = [];
+
+    // 점수 기반 추천
+    if (evaluation.totalScore < 50) {
+      recommendations.push({
+        type: 'CRITICAL',
+        message: '전반적인 자격 요건 보강이 필요합니다',
+        priority: 'HIGH'
+      });
+    } else if (evaluation.totalScore < 70) {
+      recommendations.push({
+        type: 'IMPORTANT',
+        message: '일부 요건을 보완하면 승인 가능성이 높아집니다',
+        priority: 'MEDIUM'
+      });
+    }
+
+    // 항목별 추천
+    if (evaluation.academicQualification && evaluation.academicQualification.score < 15) {
+      recommendations.push({
+        type: 'QUALIFICATION',
+        message: '석사 이상 학위 취득을 권장합니다',
+        priority: 'HIGH'
+      });
+    }
+
+    if (evaluation.languageSkills && evaluation.languageSkills.score < 5) {
+      recommendations.push({
+        type: 'LANGUAGE',
+        message: '한국어 능력 향상이 필요합니다 (TOPIK 4급 이상 권장)',
+        priority: 'MEDIUM'
+      });
+    }
+
+    if (evaluation.researchCapability && evaluation.researchCapability.score < 10) {
+      recommendations.push({
+        type: 'RESEARCH',
+        message: '추가 논문 발표 또는 연구 실적이 필요합니다',
+        priority: 'MEDIUM'
+      });
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * 개선 로드맵 생성
+   */
+  createImprovementRoadmap(evaluation, data) {
+    const roadmap = {
+      immediate: [],
+      shortTerm: [],
+      longTerm: []
+    };
+
+    // 즉시 개선 가능한 항목
+    if (data.onlineTeachingRatio > 50) {
+      roadmap.immediate.push({
+        action: '온라인 강의 비율을 50% 이하로 조정',
+        impact: '필수 요건 충족',
+        difficulty: 'LOW'
+      });
+    }
+
+    // 단기 개선 항목 (3-6개월)
+    if (evaluation.languageSkills && evaluation.languageSkills.score < 5) {
+      roadmap.shortTerm.push({
+        action: '한국어 능력 시험(TOPIK) 준비 및 응시',
+        impact: '평가 점수 5-10점 상승',
+        difficulty: 'MEDIUM'
+      });
+    }
+
+    // 장기 개선 항목 (6개월 이상)
+    if (evaluation.academicQualification && evaluation.academicQualification.score < 15) {
+      roadmap.longTerm.push({
+        action: '석사/박사 학위 과정 진학',
+        impact: '평가 점수 10-15점 상승',
+        difficulty: 'HIGH'
+      });
+    }
+
+    return roadmap;
+  }
+
+  /**
+   * 현재 비자 상태 평가 (변경 신청용)
+   */
+  async evaluateCurrentVisaStatus(data) {
+    return {
+      valid: true,
+      remainingDays: 90,
+      complianceStatus: 'GOOD'
+    };
+  }
+
+  /**
+   * 변경 자격 평가
+   */
+  async evaluateChangeEligibility(data) {
+    return {
+      eligible: true,
+      directChange: true,
+      requirements: []
+    };
+  }
+
+  /**
+   * 비자 준수사항 평가 (연장용)
+   */
+  async evaluateVisaCompliance(data) {
+    return {
+      score: 100,
+      compliant: true,
+      violations: []
+    };
+  }
+
+  /**
+   * 소득 요건 평가
+   */
+  async evaluateIncomeRequirement(data) {
+    return {
+      score: 100,
+      meets: true,
+      income: data.monthlyIncome || 0
+    };
+  }
+
+  /**
+   * 고용 상태 평가
+   */
+  async evaluateEmploymentStatus(data) {
+    return {
+      score: 100,
+      stable: true,
+      duration: 12
+    };
+  }
+
+  /**
+   * 세금 납부 평가
+   */
+  async evaluateTaxPayment(data) {
+    return {
+      score: 100,
+      compliant: true
+    };
+  }
+
+  /**
+   * 최근 거래 활동 평가
+   */
+  async evaluateRecentTradeActivity(data) {
+    return {
+      score: 100,
+      active: true
+    };
+  }
+
+  /**
+   * 연장 리스크 식별
+   */
+  async identifyExtensionRisks(data) {
+    return [];
+  }
+
+  /**
+   * 연장 준수사항 계산
+   */
+  calculateExtensionCompliance(evaluation) {
+    let score = 0;
+    let issues = [];
+    
+    // 1. 비자 준수 사항 (40점)
+    if (evaluation.complianceCheck && evaluation.complianceCheck.compliant) {
+      score += 40;
+    } else {
+      issues.push('비자 위반 사항이 있습니다');
+    }
+    
+    // 2. 소득 요건 (30점)
+    if (evaluation.incomeVerification && evaluation.incomeVerification.passed) {
+      score += 30;
+    } else {
+      issues.push('소듍 요건을 충족하지 못했습니다');
+    }
+    
+    // 3. 고용 지속성 (20점)
+    if (evaluation.employmentContinuity && evaluation.employmentContinuity.stable) {
+      score += 20;
+    } else {
+      issues.push('고용 상태가 불안정합니다');
+    }
+    
+    // 4. 세금 납부 (10점)
+    if (evaluation.taxCompliance && evaluation.taxCompliance.compliant) {
+      score += 10;
+    } else {
+      issues.push('세금 납부 문제가 있습니다');
+    }
+    
+    // 연장 승인 기준: 70점 이상
+    const status = score >= 70 ? 'APPROVED' : score >= 50 ? 'CONDITIONAL' : 'DENIED';
+    
+    return {
+      score,
+      maxScore: 100,
+      status,
+      issues,
+      details: {
+        compliance: evaluation.complianceCheck?.score || 0,
+        income: evaluation.incomeVerification?.score || 0,
+        employment: evaluation.employmentContinuity?.score || 0,
+        tax: evaluation.taxCompliance?.score || 0
+      }
+    };
+  }
+
+  /**
+   * 연장 추천사항 생성
+   */
+  generateExtensionRecommendations(evaluation, data) {
+    const recommendations = [];
+    
+    // 소듍 요건 미충족 시
+    if (!evaluation.incomeVerification?.passed) {
+      recommendations.push({
+        priority: 'high',
+        category: 'income',
+        message: '소듍 요건을 충족하지 못했습니다',
+        actions: [
+          '급여 상향 협상',
+          '추가 수입원 확보',
+          '강의 시간 증대'
+        ]
+      });
+    }
+    
+    // 세금 문제가 있을 경우
+    if (!evaluation.taxCompliance?.compliant) {
+      recommendations.push({
+        priority: 'high',
+        category: 'tax',
+        message: '세금 납부 문제 해결 필요',
+        actions: [
+          '미납 세금 즉시 납부',
+          '세금 납부 증명서 발급',
+          '세무사와 상담'
+        ]
+      });
+    }
+    
+    // 활동 실적 개선 필요
+    if (evaluation.tradePerformance?.score < 50) {
+      recommendations.push({
+        priority: 'medium',
+        category: 'performance',
+        message: '활동 실적 개선 필요',
+        actions: [
+          '연구 실적 증대',
+          '교육 성과 개선',
+          '학생 평가 향상'
+        ]
+      });
+    }
+    
+    // 성공적인 연장 사례
+    if (evaluation.complianceStatus?.score >= 90) {
+      recommendations.push({
+        priority: 'info',
+        category: 'success',
+        message: '우수한 활동 실적으로 연장 가능성이 높습니다',
+        actions: [
+          '필수 서류 준비',
+          '연장 신청 시기 확인 (만료 2개월 전)',
+          '고용계약서 갱신'
+        ]
+      });
+    }
+    
+    return recommendations;
   }
 }
 

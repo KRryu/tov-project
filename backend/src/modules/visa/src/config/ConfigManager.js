@@ -124,7 +124,118 @@ class ConfigManager {
       processing_days: { min: 7, max: 30 }
     });
 
-    // 추가 비자들은 필요에 따라 추가
+    // D-2 유학
+    this.visaConfigs.set('D-2', {
+      code: 'D-2',
+      name: '유학',
+      category: 'education',
+      base_requirements: {
+        education: 'HIGH_SCHOOL',
+        acceptance_letter: true
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'LOW',
+      processing_days: { min: 7, max: 21 }
+    });
+
+    // D-4 일반연수
+    this.visaConfigs.set('D-4', {
+      code: 'D-4',
+      name: '일반연수',
+      category: 'education',
+      base_requirements: {
+        education: 'HIGH_SCHOOL',
+        training_program: true
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'LOW',
+      processing_days: { min: 7, max: 21 }
+    });
+
+    // E-2 회화지도
+    this.visaConfigs.set('E-2', {
+      code: 'E-2',
+      name: '회화지도',
+      category: 'work',
+      base_requirements: {
+        education: 'BACHELOR',
+        native_speaker: true,
+        criminal_check: true
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'MEDIUM',
+      processing_days: { min: 14, max: 30 }
+    });
+
+    // E-7 특정활동
+    this.visaConfigs.set('E-7', {
+      code: 'E-7',
+      name: '특정활동',
+      category: 'work',
+      base_requirements: {
+        education: 'BACHELOR',
+        experience_years: 1,
+        points: 52
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'HIGH',
+      processing_days: { min: 21, max: 60 }
+    });
+
+    // F-2 거주
+    this.visaConfigs.set('F-2', {
+      code: 'F-2',
+      name: '거주',
+      category: 'residence',
+      base_requirements: {
+        points: 80,
+        stay_years: 5
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'HIGH',
+      processing_days: { min: 30, max: 90 }
+    });
+
+    // F-4 재외동포
+    this.visaConfigs.set('F-4', {
+      code: 'F-4',
+      name: '재외동포',
+      category: 'residence',
+      base_requirements: {
+        korean_ethnicity: true
+      },
+      supported_applications: ['NEW', 'EXTENSION', 'CHANGE'],
+      complexity: 'MEDIUM',
+      processing_days: { min: 14, max: 30 }
+    });
+
+    // H-1 관광취업
+    this.visaConfigs.set('H-1', {
+      code: 'H-1',
+      name: '관광취업',
+      category: 'work',
+      base_requirements: {
+        age_limit: 30,
+        working_holiday: true
+      },
+      supported_applications: ['NEW', 'EXTENSION'],
+      complexity: 'LOW',
+      processing_days: { min: 7, max: 21 }
+    });
+
+    // H-2 방문취업
+    this.visaConfigs.set('H-2', {
+      code: 'H-2',
+      name: '방문취업',
+      category: 'work',
+      base_requirements: {
+        designated_country: true,
+        employment_permit: true
+      },
+      supported_applications: ['NEW', 'EXTENSION'],
+      complexity: 'MEDIUM',
+      processing_days: { min: 14, max: 30 }
+    });
   }
 
   /**

@@ -15,7 +15,10 @@ class ChangeStrategy extends BaseStrategy {
    * 변경 신청 평가 실행
    */
   async evaluate(context) {
-    logger.info(`변경 신청 평가 시작: ${context.data.currentVisa} → ${context.visaType}`);
+    // 프론트엔드에서 전달한 데이터가 evaluation 객체 안에 있을 수 있음
+    const evaluationData = context.data.evaluation || context.data;
+    logger.info(`변경 신청 평가 시작: ${evaluationData.currentVisa?.type || evaluationData.currentVisaType} → ${context.visaType}`);
+    logger.info(`평가 데이터 구조:`, JSON.stringify(evaluationData, null, 2));
 
     try {
       const evaluationResults = {
@@ -103,7 +106,8 @@ class ChangeStrategy extends BaseStrategy {
    * 변경 가능 경로 평가
    */
   async evaluateChangePath(context) {
-    const fromVisa = context.data.currentVisa?.type;
+    const evaluationData = context.data.evaluation || context.data;
+    const fromVisa = evaluationData.currentVisa?.type || evaluationData.currentVisaType;
     const toVisa = context.visaType;
 
     if (!fromVisa) {
@@ -127,7 +131,7 @@ class ChangeStrategy extends BaseStrategy {
     }
 
     // 변경 조건 확인
-    const conditionsMet = await this.checkChangeConditions(context.data, changePath);
+    const conditionsMet = await this.checkChangeConditions(evaluationData, changePath);
     
     return {
       allowed: conditionsMet.allowed,
@@ -220,7 +224,7 @@ class ChangeStrategy extends BaseStrategy {
    * 체류 이력 평가
    */
   async evaluateStayHistory(context) {
-    const { data } = context;
+    const evaluationData = context.data.evaluation || context.data;
     const result = {
       score: 100,
       details: {
@@ -231,15 +235,22 @@ class ChangeStrategy extends BaseStrategy {
     };
 
     // 현재 비자 유효성
-    if (!data.currentVisa || data.currentVisa.daysRemaining < 30) {
+    const daysRemaining = evaluationData.currentVisa?.daysRemaining || 
+      (evaluationData.visaExpiryDate ? Math.floor((new Date(evaluationData.visaExpiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0);
+    
+    if (!evaluationData.currentVisa && !evaluationData.currentVisaType || daysRemaining < 30) {
       result.score -= 30;
       result.details.currentVisaValidity = false;
       result.details.warning = '현재 비자 만료 임박';
     }
 
     // 체류 규정 위반
-    if (data.stayHistory?.violations) {
-      for (const violation of data.stayHistory.violations) {
+    if (evaluationData.stayHistory?.violations || evaluationData.previousVisaViolations) {
+      const violations = evaluationData.stayHistory?.violations || [];
+      if (evaluationData.previousVisaViolations) {
+        violations.push({ type: 'PREVIOUS_VIOLATION' });
+      }
+      for (const violation of violations) {
         const penalty = this.calculateViolationPenalty(violation);
         result.score -= penalty;
         result.details.violations.push(violation);
@@ -247,7 +258,7 @@ class ChangeStrategy extends BaseStrategy {
     }
 
     // 성실한 체류
-    if (data.stayHistory?.consistentStay) {
+    if (evaluationData.stayHistory?.consistentStay || (!evaluationData.criminalRecord && !evaluationData.previousVisaViolations)) {
       result.score += 10;
       result.details.positiveFactors.push('성실한 체류 이력');
     }
@@ -261,11 +272,11 @@ class ChangeStrategy extends BaseStrategy {
    */
   async evaluateNewRequirements(context) {
     const newVisaConfig = context.visaConfig;
-    const { data } = context;
+    const evaluationData = context.data.evaluation || context.data;
     
     // 기본 자격 요건 평가
     const eligibilityResult = await this.validateEligibility(
-      data.newQualifications || data,
+      evaluationData.newQualifications || evaluationData,
       newVisaConfig.base_requirements || {}
     );
 
@@ -290,7 +301,7 @@ class ChangeStrategy extends BaseStrategy {
    * 변경 사유 타당성 평가
    */
   async evaluateChangeReason(context) {
-    const { data } = context;
+    const evaluationData = context.data.evaluation || context.data;
     const result = {
       score: 50, // 기본 점수
       details: {
@@ -300,14 +311,14 @@ class ChangeStrategy extends BaseStrategy {
       }
     };
 
-    if (!data.changeReason) {
+    if (!evaluationData.changeReason) {
       result.score = 0;
       result.details.validity = 'NONE';
       return result;
     }
 
     // 사유 유형별 평가
-    const reasonType = this.categorizeChangeReason(data.changeReason);
+    const reasonType = this.categorizeChangeReason(evaluationData.changeReason);
     result.details.reasonType = reasonType;
 
     switch (reasonType) {
@@ -347,9 +358,9 @@ class ChangeStrategy extends BaseStrategy {
     }
 
     // 증빙 자료 확인
-    if (data.supportingDocuments?.length > 0) {
+    if (evaluationData.supportingDocuments?.length > 0 || evaluationData.hasRequiredDocuments) {
       result.score += 10;
-      result.details.supporting.push(`증빙 자료 ${data.supportingDocuments.length}개 제출`);
+      result.details.supporting.push(`증빙 자료 준비 완료`);
     }
 
     result.score = Math.min(100, result.score);
@@ -413,7 +424,8 @@ class ChangeStrategy extends BaseStrategy {
    * 특수 요건 확인
    */
   async checkSpecialRequirements(context) {
-    const { visaType, data } = context;
+    const { visaType } = context;
+    const evaluationData = context.data.evaluation || context.data;
     const result = {
       valid: true,
       score: 100,
@@ -423,7 +435,7 @@ class ChangeStrategy extends BaseStrategy {
     // E-1 교수 비자 특수 요건 (체류민원 매뉴얼 기반)
     if (visaType === 'E-1') {
       // 1. 학위 요건 (최소 석사 이상)
-      const educationLevel = this.mapEducationLevel(data.highestEducation);
+      const educationLevel = this.mapEducationLevel(evaluationData.highestEducation || evaluationData.educationLevel);
       if (!['DOCTORATE', 'MASTERS'].includes(educationLevel)) {
         result.valid = false;
         result.score -= 50;
@@ -431,28 +443,30 @@ class ChangeStrategy extends BaseStrategy {
       }
 
       // 2. 교육기관 초청장
-      if (!data.institutionInvitation) {
+      if (!evaluationData.institutionInvitation && !evaluationData.hasJobOffer) {
         result.valid = false;
         result.score -= 40;
         result.unmet.push('인가된 교육기관의 초청장 필요');
       }
 
       // 3. 전공 관련성
-      if (!data.majorRelevance || data.majorRelevance < 80) {
+      const majorRelevance = evaluationData.majorRelevance || 
+        (evaluationData.educationField === evaluationData.newJobDescription ? 100 : 50);
+      if (majorRelevance < 80) {
         result.score -= 20;
         result.unmet.push('전공과 교수 분야의 관련성 부족');
       }
 
       // 4. 연구 실적 (논문, 저서 등)
-      const publications = data.publications || [];
-      const publicationsCount = data.publicationsCount || publications.length;
+      const publications = evaluationData.publications || [];
+      const publicationsCount = evaluationData.publicationsCount || publications.length || parseInt(evaluationData.publicationsCount) || 0;
       if (publicationsCount < 2) {
         result.score -= 15;
         result.unmet.push('연구 실적 부족 (최소 2편의 논문 권장)');
       }
 
       // 5. 교육 경력
-      const teachingExp = parseInt(data.teachingExperience) || 0;
+      const teachingExp = parseInt(evaluationData.teachingExperience || evaluationData.relevantExperience) || 0;
       if (teachingExp < 2) {
         result.score -= 15;
         result.unmet.push('교육 경력 부족 (최소 2년 권장)');
@@ -604,7 +618,9 @@ class ChangeStrategy extends BaseStrategy {
     }
 
     // 현재 비자 만료 임박
-    const daysRemaining = context.data.currentVisa?.daysRemaining;
+    const evaluationData = context.data.evaluation || context.data;
+    const daysRemaining = evaluationData.currentVisa?.daysRemaining || 
+      (evaluationData.visaExpiryDate ? Math.floor((new Date(evaluationData.visaExpiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0);
     if (daysRemaining && daysRemaining < 60) {
       recommendations.push({
         type: 'URGENT',
@@ -639,7 +655,8 @@ class ChangeStrategy extends BaseStrategy {
     };
 
     // 특정 변경 경로별 추가 문서
-    const fromVisa = context.data.currentVisa?.type;
+    const evaluationData = context.data.evaluation || context.data;
+    const fromVisa = evaluationData.currentVisa?.type || evaluationData.currentVisaType;
     const toVisa = context.visaType;
 
     if (fromVisa === 'D-2' && toVisa === 'E-7') {

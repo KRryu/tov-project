@@ -87,6 +87,17 @@ class EvaluationEngine {
       // 4. 평가 실행
       const evaluationResult = await strategy.evaluate(context);
 
+      // 연장 신청 결과 구조 로그
+      if (applicationType === 'EXTENSION') {
+        logger.info('🔄 연장 평가 결과 구조 (평가 직후):', {
+          hasScores: !!evaluationResult.scores,
+          hasEvaluationDetails: !!evaluationResult.evaluationDetails,
+          scoreKeys: evaluationResult.scores ? Object.keys(evaluationResult.scores) : [],
+          evaluationDetailsKeys: evaluationResult.evaluationDetails ? Object.keys(evaluationResult.evaluationDetails) : [],
+          finalScore: evaluationResult.finalScore || evaluationResult.score
+        });
+      }
+
       // 5. 후처리
       const finalResult = await this.postProcess(evaluationResult, context);
 
@@ -172,7 +183,7 @@ class EvaluationEngine {
    */
   async postProcess(evaluationResult, context) {
     // 1. 점수 계산
-    const finalScore = this.calculateFinalScore(evaluationResult.scores, context);
+    const finalScore = evaluationResult.finalScore || this.calculateFinalScore(evaluationResult.scores, context);
 
     // 2. 합격 여부 결정
     const passingScore = context.appTypeConfig?.requirements?.passing_score || 70;
@@ -185,7 +196,33 @@ class EvaluationEngine {
       context.applicationType
     );
 
-    // 4. 최종 결과 구성
+    // 연장 신청의 경우 평가 결과 구조 유지
+    if (context.applicationType === 'EXTENSION') {
+      logger.info('🔄 연장 후처리 - evaluationResult 구조 유지:', {
+        scores: evaluationResult.scores ? Object.keys(evaluationResult.scores) : [],
+        evaluationDetails: evaluationResult.evaluationDetails ? Object.keys(evaluationResult.evaluationDetails) : []
+      });
+
+      // 4. 최종 결과 구성 - 연장 신청용
+      return {
+        eligible,
+        score: finalScore,
+        finalScore: finalScore,
+        // evaluationResult의 모든 속성 유지
+        ...evaluationResult,
+        // 평가 상세 정보를 최상위로도 노출
+        scores: evaluationResult.scores,
+        evaluationDetails: evaluationResult.evaluationDetails,
+        applicationType: context.applicationType,
+        recommendations: evaluationResult.recommendations || [],
+        requiredDocuments: evaluationResult.requiredDocuments || [],
+        nextSteps,
+        processingTime: this.estimateProcessingTime(context),
+        complexity: this.analyzeComplexity(context)
+      };
+    }
+
+    // 4. 최종 결과 구성 - 다른 신청 유형
     return {
       eligible,
       score: finalScore,

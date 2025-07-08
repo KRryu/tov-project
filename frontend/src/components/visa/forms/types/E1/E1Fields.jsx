@@ -408,6 +408,237 @@ const PointsEvaluationFields = ({ educationLevel, errors }) => {
   );
 };
 
+// 연장 평가용 체류 이력 필드
+const StayHistoryFields = ({ errors }) => {
+  const { register } = useFormContext();
+  
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          이전 연장 횟수
+        </label>
+        <input
+          type="number"
+          {...register('stayHistory.previousExtensions', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: 2"
+          min="0"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          총 체류 기간 (개월)
+        </label>
+        <input
+          type="number"
+          {...register('stayHistory.totalStayMonths', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: 36"
+          min="0"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          납세 지연 횟수
+        </label>
+        <input
+          type="number"
+          {...register('stayHistory.taxDelayCount', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="0"
+          min="0"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          출입국 관련 위반 사항
+        </label>
+        <select
+          {...register('stayHistory.violations')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="0">없음</option>
+          <option value="1">경미한 위반 (1회)</option>
+          <option value="2">경미한 위반 (2회 이상)</option>
+          <option value="3">중대한 위반</option>
+        </select>
+      </div>
+    </div>
+  );
+};
+
+// 연장 평가용 활동 실적 필드
+const PerformanceEvaluationFields = ({ errors }) => {
+  const { register } = useFormContext();
+  
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          주요 성과 및 업적 *
+        </label>
+        <textarea
+          {...register('performance.achievements')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="4"
+          placeholder="체류 기간 동안의 주요 연구, 교육 성과를 구체적으로 기술해주세요"
+        />
+        {errors.performance?.achievements && (
+          <p className="mt-1 text-sm text-red-600">{errors.performance.achievements.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          한국 사회 기여도 *
+        </label>
+        <textarea
+          {...register('performance.contributions')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="3"
+          placeholder="한국 사회, 학술, 경제 발전에 기여한 내용을 기술해주세요"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          출석률 (%)
+        </label>
+        <input
+          type="number"
+          {...register('performance.attendanceRate', { 
+            valueAsNumber: true,
+            min: 0,
+            max: 100
+          })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="95"
+          min="0"
+          max="100"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          체류 기간 중 발표 논문 수
+        </label>
+        <input
+          type="number"
+          {...register('performance.publications', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: 3"
+          min="0"
+        />
+      </div>
+    </div>
+  );
+};
+
+// 연장 평가용 계약 연속성 필드
+const ContinuityFields = ({ errors }) => {
+  const { register } = useFormContext();
+  
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          현재 계약 잔여 기간 (개월) *
+        </label>
+        <input
+          type="number"
+          {...register('currentContract.remainingMonths', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: 6"
+          min="0"
+        />
+        {errors.currentContract?.remainingMonths && (
+          <p className="mt-1 text-sm text-red-600">{errors.currentContract.remainingMonths.message}</p>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          현재 고용주
+        </label>
+        <input
+          {...register('currentEmployer')}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: Korea University"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          현재 월 급여 (원)
+        </label>
+        <input
+          type="number"
+          {...register('currentSalary', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="예: 4000000"
+          min="0"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          고용주 변경 횟수
+        </label>
+        <input
+          type="number"
+          {...register('employmentHistory.employerChanges', { valueAsNumber: true })}
+          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="0"
+          min="0"
+        />
+      </div>
+    </div>
+  );
+};
+
+// 연장 평가용 문서 준비도 체크리스트
+const DocumentReadinessFields = ({ errors }) => {
+  const { register } = useFormContext();
+  
+  const documents = [
+    { id: 'employment_cert', label: '재직증명서' },
+    { id: 'income_cert', label: '소득금액증명원' },
+    { id: 'business_reg', label: '사업자등록증' },
+    { id: 'passport_copy', label: '여권사본' },
+    { id: 'alien_reg', label: '외국인등록증' },
+    { id: 'tax_payment', label: '납세증명서' },
+    { id: 'health_insurance', label: '건강보험납부확인서' },
+    { id: 'contract_copy', label: '고용계약서 사본' }
+  ];
+  
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-gray-600 mb-3">
+        제출 가능한 서류를 체크해주세요. (실제 서류는 결제 후 업로드)
+      </p>
+      <div className="space-y-2">
+        {documents.map((doc) => (
+          <div key={doc.id} className="flex items-center">
+            <input
+              type="checkbox"
+              id={doc.id}
+              {...register(`submittedDocuments.${doc.id}`)}
+              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+            />
+            <label htmlFor={doc.id} className="ml-2 block text-sm text-gray-700">
+              {doc.label}
+            </label>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
 // E1Fields 객체로 모든 필드 컴포넌트 export
 const E1Fields = {
   AcademicFields,
@@ -416,7 +647,12 @@ const E1Fields = {
   AdditionalActivities,
   ExtensionFields,
   ChangeReasonFields,
-  PointsEvaluationFields
+  PointsEvaluationFields,
+  // 연장 평가용 필드들
+  StayHistoryFields,
+  PerformanceEvaluationFields,
+  ContinuityFields,
+  DocumentReadinessFields
 };
 
 export default E1Fields;

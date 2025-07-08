@@ -79,10 +79,116 @@ const visaEvaluationV2 = {
     }
     
     try {
+      // 신청 유형에 따라 Strategy가 기대하는 데이터 구조로 변환
+      let evaluationData = applicantData;
+      
+      if (applicantData.applicationType === 'EXTENSION') {
+        evaluationData = {
+          ...applicantData,
+          // ExtensionStrategy가 기대하는 stayHistory 구조
+          stayHistory: {
+            violations: applicantData.immigrationViolations ? [{ type: 'immigration', date: new Date() }] : [],
+            taxPayments: {
+              consistent: applicantData.taxPaymentStatus === true
+            },
+            socialContribution: applicantData.contributionsToKorea ? true : false,
+            departureCount: 0,
+            totalDays: applicantData.currentStayDuration * 30 || 0
+          },
+          // 활동 실적 구조
+          performance: {
+            coursesTaught: applicantData.coursesTaught || 0,
+            publications: applicantData.publications || 0,
+            studentsSupervised: applicantData.studentsSupervised || 0,
+            attendanceRate: 95,
+            unauthorizedWork: false,
+            addressNotReported: false
+          },
+          // 고용 정보
+          employmentHistory: [{
+            startDate: applicantData.employmentStartDate || applicantData.visaIssueDate,
+            endDate: new Date(),
+            employer: applicantData.currentEmployer
+          }],
+          salaryHistory: applicantData.currentIncome ? [{
+            amount: parseInt(applicantData.currentIncome) || 0,
+            date: new Date()
+          }] : [],
+          currentContract: {
+            remainingMonths: 12
+          },
+          // 기타 필수 정보
+          previousExtensions: 0,
+          totalStayMonths: applicantData.currentStayDuration || 0,
+          familyAccompanying: false,
+          nationality: applicantData.nationality
+        };
+      } else if (applicantData.applicationType === 'CHANGE') {
+        // 변경 신청의 경우 ChangeStrategy가 기대하는 데이터 구조로 변환
+        evaluationData = {
+          ...applicantData,
+          // 체류 정보
+          totalStayMonths: applicantData.currentStayDuration || 
+            (applicantData.visaIssueDate ? 
+              Math.floor((new Date() - new Date(applicantData.visaIssueDate)) / (1000 * 60 * 60 * 24 * 30)) : 0),
+          // ChangeStrategy가 기대하는 stayHistory 구조
+          stayHistory: {
+            violations: applicantData.previousVisaViolations ? [{ type: 'visa', date: new Date() }] : [],
+            consistentStay: !applicantData.previousVisaViolations && !applicantData.criminalRecord
+          },
+          // currentVisa에 daysRemaining 추가
+          currentVisa: {
+            type: applicantData.currentVisaType,
+            number: applicantData.currentVisaNumber,
+            issueDate: applicantData.visaIssueDate,
+            expiryDate: applicantData.visaExpiryDate,
+            status: applicantData.currentStayStatus,
+            daysRemaining: applicantData.visaExpiryDate ? 
+              Math.floor((new Date(applicantData.visaExpiryDate) - new Date()) / (1000 * 60 * 60 * 24)) : 0
+          },
+          // 교육 정보
+          education: {
+            level: applicantData.educationLevel,
+            field: applicantData.educationField,
+            specialQualifications: applicantData.specialQualifications
+          },
+          // 고용 정보
+          jobOffer: applicantData.hasJobOffer === true,
+          salary: parseInt(applicantData.monthlyIncome) || 0,
+          employer: applicantData.newEmployer,
+          position: applicantData.newPosition,
+          // 준법 상태
+          violations: {
+            criminal: applicantData.criminalRecord === true,
+            health: applicantData.healthIssues === true,
+            visa: applicantData.previousVisaViolations === true
+          },
+          // 변경 관련 정보
+          changeReason: applicantData.changeReason,
+          urgencyLevel: applicantData.urgencyLevel,
+          // 준비 상태
+          documents: {
+            ready: applicantData.hasRequiredDocuments === true
+          },
+          meetsRequirements: {
+            education: applicantData.meetsEducationRequirements === true,
+            experience: applicantData.meetsExperienceRequirements === true
+          },
+          // ChangeStrategy의 evaluateNewRequirements가 사용하는 newQualifications
+          newQualifications: {
+            educationLevel: applicantData.educationLevel,
+            experienceYears: parseInt(applicantData.relevantExperience) || 0,
+            koreanLevel: applicantData.koreanProficiency,
+            hasJobOffer: applicantData.hasJobOffer,
+            salary: parseInt(applicantData.monthlyIncome) || 0
+          }
+        };
+      }
+      
       const result = await VisaModule.evaluate({
         visaType,
         applicationType: applicantData.applicationType || 'NEW',
-        data: applicantData
+        data: evaluationData
       });
       
       // 평가 결과 로그
@@ -90,69 +196,383 @@ const visaEvaluationV2 = {
       
       // 평가 결과에서 세부 정보 추출
       const evaluationDetails = result.result || {};
+      logger.info('evaluationDetails 추출:', JSON.stringify(evaluationDetails, null, 2));
       
       // 실제 평가 결과 구조에 맞게 데이터 매핑
       const scores = evaluationDetails.details?.scores || {};
       
-      // E-1 비자의 경우 세부 점수 매핑
+      // 신청 유형에 따른 세부 점수 매핑
       const mappedDetails = {};
       let expertiseScore = {};
       
-      if (visaType === 'E-1') {
-        // expertise 평가의 세부 점수 가져오기
+      if (applicantData.applicationType === 'EXTENSION') {
+        // 연장 신청의 경우 체류 이력과 활동 실적 중심 평가
+        const stayHistoryScore = scores.stayHistory || {};
+        const performanceScore = scores.performance || {};
+        const contractScore = scores.contractContinuity || {};
+        const documentScore = scores.documentCompliance || {};
+        
+        mappedDetails.stayHistory = {
+          score: stayHistoryScore.score || 0,
+          maxScore: 40,
+          details: {
+            violations: applicantData.immigrationViolations ? 1 : 0,
+            taxPayment: applicantData.taxPaymentStatus ? 'consistent' : 'irregular',
+            totalMonths: applicantData.currentStayDuration || 0
+          }
+        };
+        mappedDetails.performance = {
+          score: performanceScore.score || 0,
+          maxScore: 30,
+          details: {
+            achievements: applicantData.achievements || '',
+            contributions: applicantData.contributionsToKorea || ''
+          }
+        };
+        mappedDetails.contractContinuity = {
+          score: contractScore.score || 0,
+          maxScore: 20,
+          details: {
+            currentEmployer: applicantData.currentEmployer || '',
+            remainingMonths: applicantData.contractRemainingMonths || 0
+          }
+        };
+        mappedDetails.documents = {
+          score: documentScore.score || 0,
+          maxScore: 10,
+          details: { submitted: true }
+        };
+      } else if (applicantData.applicationType === 'CHANGE') {
+        // 변경 신청의 경우 새 비자 자격 요건 중심 평가
+        const changePathScore = scores.changePath || {};
+        const stayHistoryScore = scores.stayHistory || {};
+        const newRequirementsScore = scores.newRequirements || {};
+        const reasonScore = scores.reason || {};
+        const documentScore = scores.documents || {};
+        
+        mappedDetails.changePath = {
+          score: changePathScore.score || 0,
+          maxScore: 30,
+          details: {
+            fromVisa: applicantData.currentVisaType || '',
+            toVisa: visaType,
+            allowed: changePathScore.allowed !== false
+          }
+        };
+        mappedDetails.stayHistory = {
+          score: stayHistoryScore.score || 0,
+          maxScore: 20,
+          details: {
+            violations: applicantData.previousVisaViolations ? 1 : 0,
+            currentStatus: applicantData.currentStayStatus || '',
+            totalMonths: applicantData.currentStayDuration || 0
+          }
+        };
+        mappedDetails.newRequirements = {
+          score: newRequirementsScore.score || 0,
+          maxScore: 30,
+          details: {
+            education: applicantData.educationLevel || '',
+            experience: applicantData.relevantExperience || '',
+            jobOffer: applicantData.hasJobOffer || false
+          }
+        };
+        mappedDetails.changeReason = {
+          score: reasonScore.score || 0,
+          maxScore: 10,
+          details: {
+            reason: applicantData.changeReason || '',
+            urgency: applicantData.urgencyLevel || 'normal'
+          }
+        };
+        mappedDetails.documents = {
+          score: documentScore.score || 0,
+          maxScore: 10,
+          details: {
+            ready: applicantData.hasRequiredDocuments || false
+          }
+        };
+      } else if (visaType === 'E-1') {
+        // 신규 E-1 비자의 경우
         expertiseScore = scores.expertise || {};
         const expertiseDetails = expertiseScore.details || {};
-        const rawScore = expertiseScore.rawScore || 0;
-        const maxScore = expertiseScore.maxScore || 140;
         
-        logger.info('전문성 평가 상세:', JSON.stringify(expertiseDetails, null, 2));
-        
-        // 100점 만점 기준으로 각 항목의 최대 점수 계산
-        mappedDetails.education = {
-          score: expertiseDetails.education || 0,
-          maxScore: Math.round((40 / 140) * 100), // 약 29점
-          details: { degree: applicantData.highestEducation }
-        };
-        mappedDetails.experience = {
-          score: expertiseDetails.experience || 0,
-          maxScore: Math.round((30 / 140) * 100), // 약 21점
-          details: { years: parseInt(applicantData.yearsOfExperience) || 0 }
-        };
-        mappedDetails.research = {
-          score: expertiseDetails.research || 0,
-          maxScore: Math.round((30 / 140) * 100), // 약 21점
-          details: { publications: parseInt(applicantData.publicationsCount) || 0 }
-        };
-        mappedDetails.age = {
-          score: expertiseDetails.age || 0,
-          maxScore: Math.round((20 / 140) * 100), // 약 14점
-          details: { age: expertiseDetails.age }
-        };
-        mappedDetails.language = {
-          score: expertiseDetails.korean || 0,
-          maxScore: Math.round((20 / 140) * 100), // 약 14점
-          details: { koreanLevel: applicantData.koreanProficiency }
-        };
+        // V4 모듈의 평가 결과 구조에 맞게 수정
+        if (evaluationDetails.details || evaluationDetails.scoreBreakdown) {
+          const evalScores = evaluationDetails.details?.scores || {};
+          const scoreBreakdown = evaluationDetails.scoreBreakdown || {};
+          logger.info('V4 평가 점수:', JSON.stringify(evalScores, null, 2));
+          logger.info('점수 상세 분석:', JSON.stringify(scoreBreakdown, null, 2));
+          
+          // scoreBreakdown을 사용하여 점수 매핑
+          if (scoreBreakdown.categories) {
+            const categories = scoreBreakdown.categories;
+            
+            // 학력 점수
+            if (categories.academicQualification) {
+              mappedDetails.education = {
+                score: categories.academicQualification.score || 0,
+                maxScore: categories.academicQualification.maxScore || 25,
+                details: { 
+                  degree: applicantData.highestEducation,
+                  message: categories.academicQualification.details?.degree?.message || ''
+                }
+              };
+            }
+            
+            // 경력 점수
+            if (categories.teachingExperience) {
+              mappedDetails.experience = {
+                score: categories.teachingExperience.score || 0,
+                maxScore: categories.teachingExperience.maxScore || 30,
+                details: { 
+                  years: parseInt(applicantData.yearsOfExperience) || 0,
+                  message: categories.teachingExperience.details?.career?.message || ''
+                }
+              };
+            }
+            
+            // 연구 실적
+            if (categories.researchCapability) {
+              mappedDetails.research = {
+                score: categories.researchCapability.score || 0,
+                maxScore: categories.researchCapability.maxScore || 30,
+                details: { 
+                  publications: parseInt(applicantData.publicationsCount) || parseInt(applicantData.publications) || 0,
+                  message: categories.researchCapability.details?.publications?.message || ''
+                }
+              };
+            }
+            
+            // 기관 점수
+            if (categories.institutionStatus) {
+              mappedDetails.institution = {
+                score: categories.institutionStatus.score || 0,
+                maxScore: categories.institutionStatus.maxScore || 20,
+                details: { 
+                  type: applicantData.institutionType,
+                  message: categories.institutionStatus.details?.type?.message || ''
+                }
+              };
+            }
+            
+            // 나이 점수
+            if (categories.ageEvaluation) {
+              mappedDetails.age = {
+                score: categories.ageEvaluation.score || 0,
+                maxScore: categories.ageEvaluation.maxScore || 10,
+                details: { 
+                  age: categories.ageEvaluation.details?.current?.age || 0,
+                  message: categories.ageEvaluation.details?.current?.message || ''
+                }
+              };
+            }
+            
+            // 언어 능력
+            if (categories.languageSkills) {
+              mappedDetails.language = {
+                score: categories.languageSkills.score || 0,
+                maxScore: categories.languageSkills.maxScore || 20,
+                details: { 
+                  koreanLevel: applicantData.koreanProficiency,
+                  message: categories.languageSkills.details?.korean?.message || ''
+                }
+              };
+            }
+          } else {
+            // 기존 방식 fallback
+            logger.warn('scoreBreakdown.categories가 없습니다. 기본값 사용');
+            // education 점수
+            if (evalScores.education) {
+              mappedDetails.education = {
+                score: evalScores.education.score || 0,
+                maxScore: evalScores.education.maxScore || 40,
+                details: { 
+                  degree: applicantData.highestEducation,
+                  level: evalScores.education.level || ''
+                }
+              };
+            }
+            
+            // experience 점수
+            if (evalScores.experience) {
+              mappedDetails.experience = {
+                score: evalScores.experience.score || 0,
+                maxScore: evalScores.experience.maxScore || 30,
+                details: { 
+                  years: parseInt(applicantData.yearsOfExperience) || 0,
+                  level: evalScores.experience.level || ''
+                }
+              };
+            }
+            
+            // research 점수
+            if (evalScores.research) {
+              mappedDetails.research = {
+                score: evalScores.research.score || 0,
+                maxScore: evalScores.research.maxScore || 30,
+                details: { 
+                  publications: parseInt(applicantData.publicationsCount) || parseInt(applicantData.publications) || 0,
+                  level: evalScores.research.level || ''
+                }
+              };
+            }
+            
+            // institution 점수
+            if (evalScores.institution) {
+              mappedDetails.institution = {
+                score: evalScores.institution.score || 0,
+                maxScore: evalScores.institution.maxScore || 20,
+                details: { 
+                  type: applicantData.institutionType,
+                  level: evalScores.institution.level || ''
+                }
+              };
+            }
+            
+            // age 점수
+            if (evalScores.age) {
+              mappedDetails.age = {
+                score: evalScores.age.score || 0,
+                maxScore: evalScores.age.maxScore || 20,
+                details: { 
+                  age: evalScores.age.value || 0
+                }
+              };
+            }
+            
+            // korean 점수
+            if (evalScores.korean) {
+              mappedDetails.language = {
+                score: evalScores.korean.score || 0,
+                maxScore: evalScores.korean.maxScore || 20,
+                details: { 
+                  koreanLevel: applicantData.koreanProficiency,
+                  level: evalScores.korean.level || ''
+                }
+              };
+            }
+          }
+        } else {
+          // 기본값 설정
+          logger.warn('V4 평가 결과 상세 정보가 없습니다. 기본값 사용');
+          mappedDetails.education = {
+            score: expertiseDetails.education || 0,
+            maxScore: 40,
+            details: { degree: applicantData.highestEducation }
+          };
+          mappedDetails.experience = {
+            score: expertiseDetails.experience || 0,
+            maxScore: 30,
+            details: { years: parseInt(applicantData.yearsOfExperience) || 0 }
+          };
+          mappedDetails.research = {
+            score: expertiseDetails.research || 0,
+            maxScore: 30,
+            details: { publications: parseInt(applicantData.publicationsCount) || parseInt(applicantData.publications) || 0 }
+          };
+          mappedDetails.institution = {
+            score: expertiseDetails.institution || 0,
+            maxScore: 20,
+            details: { type: applicantData.institutionType }
+          };
+          mappedDetails.age = {
+            score: expertiseDetails.age || 0,
+            maxScore: 20,
+            details: { age: expertiseDetails.age }
+          };
+          mappedDetails.language = {
+            score: expertiseDetails.korean || 0,
+            maxScore: 20,
+            details: { koreanLevel: applicantData.koreanProficiency }
+          };
+        }
       } else {
-        // 기본값
-        mappedDetails.education = { score: 0, maxScore: 40 };
-        mappedDetails.experience = { score: 0, maxScore: 30 };
-        mappedDetails.expertise = { score: 0, maxScore: 30 };
-        mappedDetails.institution = { score: 0, maxScore: 10 };
-        mappedDetails.additional = { score: 0, maxScore: 10 };
+        // 다른 비자 타입의 경우 기본 평가 구조
+        const evalScores = evaluationDetails.details?.scores || {};
+        
+        // 기본 평가 항목들
+        if (evalScores.education) {
+          mappedDetails.education = {
+            score: evalScores.education.score || 0,
+            maxScore: evalScores.education.maxScore || 40,
+            details: { degree: applicantData.highestEducation || applicantData.educationLevel }
+          };
+        } else {
+          mappedDetails.education = { score: 0, maxScore: 40 };
+        }
+        
+        if (evalScores.experience) {
+          mappedDetails.experience = {
+            score: evalScores.experience.score || 0,
+            maxScore: evalScores.experience.maxScore || 30,
+            details: { years: parseInt(applicantData.yearsOfExperience) || parseInt(applicantData.experienceYears) || 0 }
+          };
+        } else {
+          mappedDetails.experience = { score: 0, maxScore: 30 };
+        }
+        
+        if (evalScores.expertise) {
+          mappedDetails.expertise = {
+            score: evalScores.expertise.score || 0,
+            maxScore: evalScores.expertise.maxScore || 30
+          };
+        } else {
+          mappedDetails.expertise = { score: 0, maxScore: 30 };
+        }
+        
+        if (evalScores.institution) {
+          mappedDetails.institution = {
+            score: evalScores.institution.score || 0,
+            maxScore: evalScores.institution.maxScore || 10
+          };
+        } else {
+          mappedDetails.institution = { score: 0, maxScore: 10 };
+        }
+        
+        if (evalScores.additional) {
+          mappedDetails.additional = {
+            score: evalScores.additional.score || 0,
+            maxScore: evalScores.additional.maxScore || 10
+          };
+        } else {
+          mappedDetails.additional = { score: 0, maxScore: 10 };
+        }
       }
+      
+      // 전체 점수 계산
+      const totalScore = evaluationDetails.totalScore || evaluationDetails.score || 
+                        evaluationDetails.scoreBreakdown?.totalScore || 0;
+      const totalMaxScore = evaluationDetails.scoreBreakdown?.maxScore || 
+                           (applicantData.applicationType === 'EXTENSION' || applicantData.applicationType === 'CHANGE' ? 100 : 140);
+      
+      logger.info('최종 평가 결과:', {
+        visaType,
+        applicationType: applicantData.applicationType,
+        totalScore,
+        totalMaxScore,
+        details: mappedDetails,
+        originalEvaluationDetails: evaluationDetails
+      });
       
       return {
         visaType,
         applicationType: applicantData.applicationType,
-        passPreScreening: evaluationDetails.eligible || false,
-        score: evaluationDetails.score || 0,
-        rawScore: expertiseScore?.rawScore || 0,
-        maxScore: expertiseScore?.maxScore || 140,
+        passPreScreening: evaluationDetails.eligible || totalScore >= 70,
+        score: totalScore,
+        rawScore: totalScore,
+        maxScore: totalMaxScore,
         details: mappedDetails,
         recommendations: evaluationDetails.recommendations || [],
         alternatives: evaluationDetails.alternatives || [],
         remediableIssues: evaluationDetails.issues || [],
+        // 추가 분석 정보
+        scoreBreakdown: evaluationDetails.scoreBreakdown || {},
+        growthPotential: evaluationDetails.growthPotential || {},
+        risks: evaluationDetails.risks || [],
+        improvementRoadmap: evaluationDetails.improvementRoadmap || {},
+        // 원본 평가 결과 (디버깅용)
+        evaluationDetails: evaluationDetails,
         metadata: {
           evaluationId: result.evaluationId || Date.now().toString(),
           timestamp: new Date().toISOString()
@@ -811,6 +1231,9 @@ router.post('/create-application', protect, asyncHandler(async (req, res) => {
   });
 
   try {
+    // 받은 데이터 로그
+    logger.info('Received applicationData:', JSON.stringify(applicationData, null, 2));
+    
     // applicationData에서 personalInfo 추출
     const personalInfo = {
       fullName: applicationData.fullName,
@@ -826,16 +1249,187 @@ router.post('/create-application', protect, asyncHandler(async (req, res) => {
       currentCountry: applicationData.currentCountry
     };
 
-    // evaluationData 생성
-    const evaluationData = {
-      educationLevel: applicationData.highestEducation,
-      experienceYears: applicationData.yearsOfExperience,
-      institutionType: applicationData.institutionType || 'university',
-      institution: applicationData.universityName,
-      position: applicationData.jobTitle,
-      researchField: applicationData.educationField,
-      publications: applicationData.publications || 0
-    };
+    // evaluationData 생성 - applicationType에 따라 다르게 처리
+    let evaluationData = {};
+    
+    if (applicationType === 'NEW') {
+      // 신규 신청용 evaluationData
+      evaluationData = {
+        educationLevel: applicationData.highestEducation || 'bachelor',
+        experienceYears: parseInt(applicationData.yearsOfExperience) || 0,
+        institutionType: applicationData.institutionType || 'university',
+        institution: applicationData.universityName || applicationData.currentEmployer || '',
+        position: applicationData.jobTitle || applicationData.currentOccupation || '',
+        researchField: applicationData.educationField || '',
+        publications: parseInt(applicationData.publicationsCount) || parseInt(applicationData.publications) || 0,
+        
+        // 추가 필수 필드들
+        birthDate: applicationData.birthDate,
+        koreanProficiency: applicationData.koreanProficiency || 'none',
+        englishProficiency: applicationData.englishProficiency || 'none',
+        contractDuration: parseInt(applicationData.contractDuration) || 12,
+        weeklyTeachingHours: parseInt(applicationData.weeklyTeachingHours) || 9,
+        onlineTeachingRatio: parseInt(applicationData.onlineTeachingRatio) || 0,
+        previousKoreaExperience: applicationData.previousKoreaExperience || false,
+        majorPublications: applicationData.majorPublications || '',
+        institutionPrestige: applicationData.institutionPrestige || 'regular'
+      };
+      
+      // 필수 필드 확인 로그
+      logger.info('Generated evaluationData for NEW:', JSON.stringify(evaluationData, null, 2));
+    } else if (applicationType === 'EXTENSION') {
+      // 연장 신청용 evaluationData
+      evaluationData = {
+        // E-1 비자 필수 필드들 (VISA_FIELDS에 정의된 대로)
+        educationLevel: applicationData.highestEducation || applicationData.educationLevel || 'phd',
+        experienceYears: parseInt(applicationData.yearsOfExperience) || parseInt(applicationData.experienceYears) || 5,
+        institutionType: applicationData.institutionType || 'university',
+        institution: applicationData.universityName || applicationData.currentEmployer || '',
+        position: applicationData.jobTitle || applicationData.currentPosition || 'professor',
+        researchField: applicationData.educationField || applicationData.researchField || 'general',
+        publications: parseInt(applicationData.publicationsCount) || parseInt(applicationData.publications) || 0,
+        
+        // 추가 필수 필드들
+        birthDate: applicationData.birthDate,
+        koreanProficiency: applicationData.koreanProficiency || 'none',
+        englishProficiency: applicationData.englishProficiency || 'none',
+        contractDuration: parseInt(applicationData.contractDuration) || 12,
+        weeklyTeachingHours: parseInt(applicationData.weeklyTeachingHours) || 9,
+        onlineTeachingRatio: parseInt(applicationData.onlineTeachingRatio) || 0,
+        previousKoreaExperience: applicationData.previousKoreaExperience || false,
+        majorPublications: applicationData.majorPublications || '',
+        institutionPrestige: applicationData.institutionPrestige || 'regular',
+        
+        // 현재 비자 정보
+        currentVisaType: applicationData.currentVisaType || visaType,
+        currentVisaNumber: applicationData.currentVisaNumber,
+        visaIssueDate: applicationData.visaIssueDate,
+        visaExpiryDate: applicationData.visaExpiryDate,
+        currentStayStatus: applicationData.currentStayStatus,
+        alienRegistrationNumber: applicationData.alienRegistrationNumber,
+        
+        // 체류 기간 계산
+        currentStayDuration: applicationData.currentStayDuration || 
+          (applicationData.visaIssueDate ? 
+            Math.floor((new Date() - new Date(applicationData.visaIssueDate)) / (1000 * 60 * 60 * 24 * 30)) : 0),
+        
+        // 연장 정보
+        extensionPeriod: applicationData.extensionPeriod,
+        extensionReason: applicationData.extensionReason,
+        
+        // 활동 실적
+        activitiesPerformed: applicationData.activitiesPerformed,
+        achievements: applicationData.achievements,
+        contributionsToKorea: applicationData.contributionsToKorea,
+        
+        // 향후 계획
+        futurePlans: applicationData.futurePlans,
+        expectedAchievements: applicationData.expectedAchievements,
+        
+        // 재정 및 고용 정보
+        currentIncome: applicationData.currentIncome,
+        savingsAmount: applicationData.savingsAmount,
+        financialSponsor: applicationData.financialSponsor,
+        currentEmployer: applicationData.currentEmployer,
+        currentPosition: applicationData.currentPosition,
+        employmentStartDate: applicationData.employmentStartDate,
+        
+        // 준법 상태
+        taxPaymentStatus: applicationData.taxPaymentStatus === true,
+        healthInsuranceStatus: applicationData.healthInsuranceStatus === true,
+        criminalRecordSinceEntry: applicationData.criminalRecordSinceEntry === true,
+        immigrationViolations: applicationData.immigrationViolations === true,
+        
+        // 개인 정보 (평가에 필요)
+        fullName: applicationData.fullName,
+        birthDate: applicationData.birthDate,
+        nationality: applicationData.nationality,
+        passportNumber: applicationData.passportNumber,
+        email: applicationData.email,
+        phone: applicationData.phone,
+        currentAddress: applicationData.currentAddress,
+        currentCity: applicationData.currentCity
+      };
+    } else if (applicationType === 'CHANGE') {
+      // 변경 신청용 evaluationData
+      evaluationData = {
+        // E-1 비자 필수 필드들 (목표 비자가 E-1인 경우)
+        educationLevel: applicationData.educationLevel || applicationData.highestEducation || 'phd',
+        experienceYears: parseInt(applicationData.relevantExperience) || parseInt(applicationData.yearsOfExperience) || 5,
+        institutionType: applicationData.institutionType || 'university',
+        institution: applicationData.newEmployer || applicationData.universityName || '',
+        position: applicationData.newPosition || applicationData.jobTitle || 'professor',
+        researchField: applicationData.educationField || 'general',
+        publications: parseInt(applicationData.publicationsCount) || parseInt(applicationData.publications) || 0,
+        
+        // 추가 필수 필드들
+        birthDate: applicationData.birthDate,
+        koreanProficiency: applicationData.koreanProficiency || 'none',
+        englishProficiency: applicationData.englishProficiency || 'none',
+        contractDuration: parseInt(applicationData.contractDuration) || 12,
+        weeklyTeachingHours: parseInt(applicationData.weeklyTeachingHours) || 9,
+        onlineTeachingRatio: parseInt(applicationData.onlineTeachingRatio) || 0,
+        previousKoreaExperience: applicationData.previousKoreaExperience || false,
+        majorPublications: applicationData.majorPublications || '',
+        institutionPrestige: applicationData.institutionPrestige || 'regular',
+        
+        // 현재 비자 정보
+        currentVisaType: applicationData.currentVisaType,
+        currentVisaNumber: applicationData.currentVisaNumber,
+        visaIssueDate: applicationData.visaIssueDate,
+        visaExpiryDate: applicationData.visaExpiryDate,
+        alienRegistrationNumber: applicationData.alienRegistrationNumber,
+        currentStayStatus: applicationData.currentStayStatus,
+        
+        // 변경 정보
+        targetVisaType: visaType,
+        changeReason: applicationData.changeReason,
+        urgencyLevel: applicationData.urgencyLevel,
+        
+        // 새 비자 관련 정보
+        newEmployer: applicationData.newEmployer,
+        newPosition: applicationData.newPosition,
+        newJobDescription: applicationData.newJobDescription,
+        employmentStartDate: applicationData.employmentStartDate,
+        
+        // 자격 요건 추가
+        educationField: applicationData.educationField,
+        relevantExperience: applicationData.relevantExperience,
+        specialQualifications: applicationData.specialQualifications,
+        
+        // 언어 능력
+        koreanProficiency: applicationData.koreanProficiency,
+        englishProficiency: applicationData.englishProficiency,
+        
+        // 재정 상태
+        monthlyIncome: applicationData.monthlyIncome,
+        savingsAmount: applicationData.savingsAmount,
+        financialSponsor: applicationData.financialSponsor,
+        
+        // 준비 상태
+        hasJobOffer: applicationData.hasJobOffer === true,
+        hasRequiredDocuments: applicationData.hasRequiredDocuments === true,
+        meetsEducationRequirements: applicationData.meetsEducationRequirements === true,
+        meetsExperienceRequirements: applicationData.meetsExperienceRequirements === true,
+        
+        // 준법 상태
+        criminalRecord: applicationData.criminalRecord === true,
+        healthIssues: applicationData.healthIssues === true,
+        previousVisaViolations: applicationData.previousVisaViolations === true,
+        
+        // 개인 정보
+        fullName: applicationData.fullName,
+        birthDate: applicationData.birthDate,
+        nationality: applicationData.nationality,
+        passportNumber: applicationData.passportNumber,
+        email: applicationData.email,
+        phone: applicationData.phone,
+        currentAddress: applicationData.currentAddress,
+        currentCity: applicationData.currentCity,
+        currentEmployer: applicationData.currentEmployer,
+        currentPosition: applicationData.currentPosition
+      };
+    }
 
     const application = new VisaApplication({
       userId: req.user.id,

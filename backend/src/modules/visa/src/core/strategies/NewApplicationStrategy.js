@@ -69,6 +69,24 @@ class NewApplicationStrategy extends BaseStrategy {
       // 8. 결과 로깅
       this.logEvaluationResult(context, evaluationResults);
 
+      // 9. comprehensive 결과가 있으면 병합
+      if (evaluationResults.scores.expertise && evaluationResults.scores.expertise.details) {
+        const expertiseDetails = evaluationResults.scores.expertise.details;
+        if (expertiseDetails.comprehensive) {
+          evaluationResults.scoreBreakdown = expertiseDetails.scoreBreakdown;
+          evaluationResults.totalScore = expertiseDetails.score || 0;
+          evaluationResults.details = {
+            scores: expertiseDetails.comprehensive
+          };
+          // 중요: growthPotential과 기타 상세 데이터 추가
+          evaluationResults.growthPotential = expertiseDetails.growthPotential;
+          evaluationResults.improvementRoadmap = expertiseDetails.improvementRoadmap;
+          evaluationResults.manualScoreCheck = expertiseDetails.manualScoreCheck;
+          evaluationResults.evaluationDetails = expertiseDetails.evaluationDetails;
+          evaluationResults.comprehensive = expertiseDetails.comprehensive;
+        }
+      }
+
       return evaluationResults;
 
     } catch (error) {
@@ -241,25 +259,39 @@ class NewApplicationStrategy extends BaseStrategy {
     if (this.useDetailedEvaluation) {
       const E1DetailedEvaluator = require('../evaluators/E1DetailedEvaluator');
       const detailedEvaluator = new E1DetailedEvaluator();
+      detailedEvaluator.applicationType = 'NEW';  // 신규 신청으로 설정
       const detailedResult = await detailedEvaluator.evaluateComprehensive(data);
       
-      // 기존 포맷에 맞게 변환
+      console.log('E1DetailedEvaluator 평가 결과:', JSON.stringify(detailedResult, null, 2));
+      
+      // 기존 포맷에 맞게 변환 - detailedResult가 이미 평가 결과 객체
       return {
-        score: detailedResult.totalScore,
+        score: detailedResult.totalScore || 0,
         details: {
-          education: detailedResult.basicQualification.details.degree?.score || 0,
-          experience: detailedResult.academicExpertise.details.teaching?.score || 0,
-          research: detailedResult.researchCapability.details.publicationQuality?.score || 0,
-          age: detailedResult.stabilityFactors.details.age?.score || 0,
-          korean: detailedResult.languageAdaptability.details.korean?.score || 0,
-          // 추가 상세 정보
-          fieldRelevance: detailedResult.basicQualification.details.relevance?.score || 0,
-          institutionPrestige: detailedResult.institutionFit.details.prestige?.score || 0,
-          growthPotential: detailedResult.growthPotential.totalPotential || 0
+          education: detailedResult.academicQualification?.score || 0,
+          experience: detailedResult.teachingExperience?.score || 0,
+          research: detailedResult.researchCapability?.score || 0,
+          age: detailedResult.ageEvaluation?.score || 0,
+          korean: detailedResult.languageSkills?.score || 0,
+          institution: detailedResult.institutionStatus?.score || 0
         },
-        rawScore: detailedResult.totalScore,
-        maxScore: 100,
-        comprehensive: detailedResult
+        rawScore: detailedResult.totalScore || 0,
+        maxScore: detailedResult.scoreBreakdown?.maxScore || 140,
+        comprehensive: detailedResult,
+        scoreBreakdown: detailedResult.scoreBreakdown,
+        // 중요: growthPotential과 종합 분석 데이터 추가
+        growthPotential: detailedResult.growthPotential,
+        improvementRoadmap: detailedResult.improvementRoadmap,
+        manualScoreCheck: detailedResult.manualScoreCheck,
+        evaluationDetails: {
+          comprehensive: detailedResult,
+          academicQualification: detailedResult.academicQualification,
+          teachingExperience: detailedResult.teachingExperience,
+          researchCapability: detailedResult.researchCapability,
+          languageSkills: detailedResult.languageSkills,
+          ageEvaluation: detailedResult.ageEvaluation,
+          institutionStatus: detailedResult.institutionStatus
+        }
       };
     }
     

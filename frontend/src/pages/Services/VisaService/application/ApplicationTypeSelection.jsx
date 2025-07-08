@@ -23,9 +23,32 @@ const ApplicationTypeSelection = () => {
   const loadVisaTypes = async () => {
     try {
       setLoading(true);
-      const response = await visaServiceV2.getSupportedTypesWithDetails();
-      if (response.success) {
-        setVisaTypes(response.data.visaTypes);
+      
+      // 임시로 하드코딩된 비자 타입 목록 사용 (테스트용)
+      const hardcodedVisaTypes = [
+        { code: 'E-1', name: '교육 활동', description: '대학 교원, 연구원 등 교육 관련 전문직' },
+        { code: 'E-2', name: '회화지도', description: '외국어 회화지도 활동' },
+        { code: 'E-3', name: '연구 활동', description: '연구기관에서의 연구 활동' },
+        { code: 'E-4', name: '기술지도', description: '기술 지도 활동' },
+        { code: 'E-5', name: '전문직업', description: '전문직업 활동' },
+        { code: 'E-6', name: '예술흥행', description: '예술 및 흥행 활동' },
+        { code: 'E-7', name: '특정 활동', description: '특정 활동 종사' },
+        { code: 'D-10', name: '구직', description: '구직 활동' },
+        { code: 'F-2', name: '거주', description: '거주 자격' },
+        { code: 'F-6', name: '결혼이민', description: '결혼 이민' }
+      ];
+
+      setVisaTypes(hardcodedVisaTypes);
+      
+      // 백엔드 API 호출 시도 (실패하면 하드코딩 사용)
+      try {
+        const response = await visaServiceV2.getSupportedTypesWithDetails();
+        if (response.success && response.data.visaTypes && response.data.visaTypes.length > 0) {
+          setVisaTypes(response.data.visaTypes);
+        }
+      } catch (apiError) {
+        console.warn('API 호출 실패, 하드코딩 데이터 사용:', apiError);
+        // 하드코딩 데이터 그대로 사용
       }
     } catch (error) {
       console.error('Failed to load visa types:', error);

@@ -16,6 +16,11 @@ class ExtensionStrategy extends BaseStrategy {
    */
   async evaluate(context) {
     logger.info(`연장 신청 평가 시작: ${context.visaType}`);
+    
+    // 프론트엔드에서 전달한 데이터 구조 확인
+    const evaluationData = context.data.evaluation || context.data;
+    logger.info(`전체 데이터 구조:`, JSON.stringify(context.data, null, 2));
+    logger.info(`평가 데이터 구조:`, JSON.stringify(evaluationData, null, 2));
 
     try {
       const evaluationResults = {
@@ -25,35 +30,56 @@ class ExtensionStrategy extends BaseStrategy {
         requiredDocuments: []
       };
 
-      // 1. 체류 이력 평가 (40%)
+      // 1. 체류 이력 평가 (40점 만점)
       const stayHistoryResult = await this.evaluateStayHistory(context);
+      const stayHistoryScore = Math.round((stayHistoryResult.score / 100) * 40);
       evaluationResults.scores.stayHistory = {
-        score: stayHistoryResult.score,
+        score: stayHistoryScore,
+        maxScore: 40,
         weight: 40,
+        percentage: stayHistoryResult.score, // 100점 만점 기준 백분율
         details: stayHistoryResult
       };
 
-      // 2. 활동 실적 평가 (30%)
+      // 2. 활동 실적 평가 (30점 만점)
       const performanceResult = await this.evaluatePerformance(context);
+      const performanceScore = Math.round((performanceResult.score / 100) * 30);
       evaluationResults.scores.performance = {
-        score: performanceResult.score,
+        score: performanceScore,
+        maxScore: 30,
         weight: 30,
+        percentage: performanceResult.score, // 100점 만점 기준 백분율
         details: performanceResult
       };
 
-      // 3. 계약 연속성 평가 (20%)
+      // 3. 계약 연속성 평가 (20점 만점)
       const continuityResult = await this.evaluateContinuity(context);
+      const continuityScore = Math.round((continuityResult.score / 100) * 20);
       evaluationResults.scores.continuity = {
-        score: continuityResult.score,
+        score: continuityScore,
+        maxScore: 20,
         weight: 20,
+        percentage: continuityResult.score, // 100점 만점 기준 백분율
+        details: continuityResult
+      };
+      
+      // contractContinuity도 동일한 결과로 매핑 (프론트엔드 호환성)
+      evaluationResults.scores.contractContinuity = {
+        score: continuityScore,
+        maxScore: 20,
+        weight: 20,
+        percentage: continuityResult.score, // 100점 만점 기준 백분율
         details: continuityResult
       };
 
-      // 4. 문서 평가 (10%)
+      // 4. 문서 평가 (10점 만점)
       const documentResult = await this.evaluateDocuments(context);
+      const documentScore = Math.round((documentResult.score / 100) * 10);
       evaluationResults.scores.documents = {
-        score: documentResult.score,
+        score: documentScore,
+        maxScore: 10,
         weight: 10,
+        percentage: documentResult.score, // 100점 만점 기준 백분율
         details: documentResult
       };
 
@@ -68,8 +94,14 @@ class ExtensionStrategy extends BaseStrategy {
       const ruleResults = await this.ruleEngine.applyRules(context);
       evaluationResults.validations = ruleResults;
 
-      // 7. 최종 점수 계산
-      evaluationResults.finalScore = this.aggregateScores(evaluationResults.scores);
+      // 7. 최종 점수 계산 (단순 합산)
+      const finalScore = 
+        evaluationResults.scores.stayHistory.score +
+        evaluationResults.scores.performance.score +
+        evaluationResults.scores.continuity.score +
+        evaluationResults.scores.documents.score;
+      
+      evaluationResults.finalScore = finalScore;
 
       // 8. 추천사항 생성
       evaluationResults.recommendations = this.generateRecommendations(evaluationResults, context);
@@ -80,7 +112,46 @@ class ExtensionStrategy extends BaseStrategy {
       // 10. 결과 로깅
       this.logEvaluationResult(context, evaluationResults);
 
-      return evaluationResults;
+      // 11. 프론트엔드가 기대하는 구조로 변환
+      const formattedResult = {
+        ...evaluationResults,
+        score: evaluationResults.finalScore,
+        eligible: evaluationResults.finalScore >= 70,
+        details: evaluationResults.scores,  // scores를 details에도 매핑
+        evaluationDetails: {
+          scores: evaluationResults.scores,
+          applicationType: 'EXTENSION',
+          details: evaluationResults.scores
+        },
+        applicationType: 'EXTENSION'
+      };
+
+      logger.info('연장 평가 최종 결과:', {
+        finalScore: evaluationResults.finalScore,
+        breakdown: {
+          stayHistory: `${evaluationResults.scores.stayHistory.score}점 (${evaluationResults.scores.stayHistory.percentage}%)`,
+          performance: `${evaluationResults.scores.performance.score}점 (${evaluationResults.scores.performance.percentage}%)`,
+          continuity: `${evaluationResults.scores.continuity.score}점 (${evaluationResults.scores.continuity.percentage}%)`,
+          documents: `${evaluationResults.scores.documents.score}점 (${evaluationResults.scores.documents.percentage}%)`
+        },
+        percentages: {
+          stayHistory: evaluationResults.scores.stayHistory.percentage,
+          performance: evaluationResults.scores.performance.percentage,
+          continuity: evaluationResults.scores.continuity.percentage,
+          documents: evaluationResults.scores.documents.percentage
+        }
+      });
+
+      // 프론트엔드 디버깅용 상세 로그
+      logger.info('프론트엔드 전달 데이터 구조:', {
+        'details.contractContinuity': evaluationResults.scores.contractContinuity,
+        'details.continuity': evaluationResults.scores.continuity,
+        'details.documents': evaluationResults.scores.documents,
+        'details.stayHistory': evaluationResults.scores.stayHistory,
+        'details.performance': evaluationResults.scores.performance
+      });
+
+      return formattedResult;
 
     } catch (error) {
       logger.error('연장 신청 평가 중 오류:', error);
@@ -92,8 +163,8 @@ class ExtensionStrategy extends BaseStrategy {
    * 체류 이력 평가
    */
   async evaluateStayHistory(context) {
-    const { data } = context;
-    const stayHistory = data.stayHistory || {};
+    const evaluationData = context.data.evaluation || context.data;
+    const stayHistory = evaluationData.stayHistory || {};
     
     const result = {
       score: 100,
@@ -147,8 +218,9 @@ class ExtensionStrategy extends BaseStrategy {
    * 활동 실적 평가
    */
   async evaluatePerformance(context) {
-    const { visaType, data } = context;
-    const performance = data.performance || {};
+    const { visaType } = context;
+    const evaluationData = context.data.evaluation || context.data;
+    const performance = evaluationData.performance || {};
     
     let result = {
       score: 0,
@@ -183,58 +255,229 @@ class ExtensionStrategy extends BaseStrategy {
    * 계약 연속성 평가
    */
   async evaluateContinuity(context) {
-    const { data } = context;
+    const evaluationData = context.data.evaluation || context.data;
+    logger.info('계약 연속성 평가 시작:', {
+      contractContinuity: evaluationData.contractContinuity,
+      employmentHistory: evaluationData.employmentHistory
+    });
+    
     const result = {
       score: 100,
       details: {
         contractGaps: [],
         employerChanges: 0,
-        salaryProgression: 'STABLE'
+        salaryProgression: 'STABLE',
+        messages: []
       }
     };
 
-    // 계약 공백 확인
-    if (data.employmentHistory) {
-      const gaps = this.findEmploymentGaps(data.employmentHistory);
-      result.details.contractGaps = gaps;
+    // contractContinuity 구조에서 데이터 추출
+    const contractData = evaluationData.contractContinuity || {};
+    
+    // 1. 현재 계약 상태 평가
+    if (contractData.currentContract) {
+      const remainingMonths = contractData.currentContract.remainingMonths || 12;
       
-      // 공백 기간에 따른 감점
-      for (const gap of gaps) {
-        if (gap.days > 30) {
-          result.score -= 20;
-        } else if (gap.days > 14) {
-          result.score -= 10;
-        }
-      }
-
-      // 고용주 변경 횟수
-      result.details.employerChanges = data.employmentHistory.length - 1;
-      if (result.details.employerChanges > 2) {
-        result.score -= 15;
-      }
-    }
-
-    // 급여 진행 상황
-    if (data.salaryHistory) {
-      const progression = this.analyzeSalaryProgression(data.salaryHistory);
-      result.details.salaryProgression = progression;
-      
-      if (progression === 'INCREASING') {
+      if (remainingMonths >= 12) {
+        result.details.messages.push(`계약 잔여기간 ${remainingMonths}개월 - 안정적 (보너스 +10점)`);
         result.score += 10;
-      } else if (progression === 'DECREASING') {
-        result.score -= 10;
-      }
-    }
-
-    // 현재 계약 상태
-    if (data.currentContract) {
-      if (data.currentContract.remainingMonths < 3) {
+      } else if (remainingMonths >= 6) {
+        result.details.messages.push(`계약 잔여기간 ${remainingMonths}개월 - 양호`);
+      } else if (remainingMonths >= 3) {
+        result.details.messages.push(`계약 잔여기간 ${remainingMonths}개월 - 주의 (-5점)`);
+        result.score -= 5;
+      } else {
+        result.details.messages.push(`계약 잔여기간 ${remainingMonths}개월 - 위험 (-15점)`);
         result.score -= 15;
         result.details.warning = '계약 만료 임박';
       }
     }
 
+    // 2. 고용주 변경 횟수 평가
+    const employerChanges = contractData.employerChangeCount || 0;
+    result.details.employerChanges = employerChanges;
+    
+    if (employerChanges === 0) {
+      result.details.messages.push('직장 변경 없음 - 안정적 (보너스 +10점)');
+      result.score += 10;
+    } else if (employerChanges === 1) {
+      result.details.messages.push('직장 변경 1회 - 보통');
+    } else if (employerChanges === 2) {
+      result.details.messages.push('직장 변경 2회 - 주의 (-10점)');
+      result.score -= 10;
+    } else {
+      result.details.messages.push(`직장 변경 ${employerChanges}회 - 불안정 (-20점)`);
+      result.score -= 20;
+    }
+
+    // 3. 계약 공백 기간 평가
+    const contractGaps = contractData.contractGaps || 0;
+    if (contractGaps > 0) {
+      if (contractGaps > 90) {
+        result.details.messages.push(`계약 공백 ${contractGaps}일 - 심각 (-25점)`);
+        result.score -= 25;
+      } else if (contractGaps > 30) {
+        result.details.messages.push(`계약 공백 ${contractGaps}일 - 주의 (-15점)`);
+        result.score -= 15;
+      } else if (contractGaps > 7) {
+        result.details.messages.push(`계약 공백 ${contractGaps}일 - 경미 (-5점)`);
+        result.score -= 5;
+      }
+    } else {
+      result.details.messages.push('계약 공백 없음 - 연속성 우수');
+    }
+
+    // 4. 급여 변화 추이 평가
+    const salaryProgression = contractData.salaryProgression || 'stable';
+    result.details.salaryProgression = salaryProgression.toUpperCase();
+    
+    if (salaryProgression === 'increasing') {
+      result.details.messages.push('급여 상승 추세 - 긍정적 (보너스 +10점)');
+      result.score += 10;
+    } else if (salaryProgression === 'stable') {
+      result.details.messages.push('급여 안정적 유지 - 양호');
+    } else if (salaryProgression === 'decreasing') {
+      result.details.messages.push('급여 하락 추세 - 우려 (-10점)');
+      result.score -= 10;
+    }
+
+    // 5. 현재 고용 기간 평가
+    if (contractData.employmentHistory && contractData.employmentHistory.length > 0) {
+      const currentJob = contractData.employmentHistory[0];
+      const employmentLength = currentJob.lengthMonths || 12;
+      
+      if (employmentLength >= 24) {
+        result.details.messages.push(`현재 직장 ${employmentLength}개월 근무 - 장기 안정 (보너스 +5점)`);
+        result.score += 5;
+      } else if (employmentLength >= 12) {
+        result.details.messages.push(`현재 직장 ${employmentLength}개월 근무 - 안정적`);
+      } else if (employmentLength >= 6) {
+        result.details.messages.push(`현재 직장 ${employmentLength}개월 근무 - 보통`);
+      } else {
+        result.details.messages.push(`현재 직장 ${employmentLength}개월 근무 - 단기 (-5점)`);
+        result.score -= 5;
+      }
+    }
+
     result.score = Math.max(0, Math.min(100, result.score));
+    
+    logger.info('계약 연속성 평가 완료:', {
+      finalScore: result.score,
+      employerChanges,
+      contractGaps,
+      salaryProgression,
+      messages: result.details.messages
+    });
+    
+    return result;
+  }
+
+  /**
+   * 문서 평가 (준비도 평가로 변경)
+   */
+  async evaluateDocuments(context) {
+    const evaluationData = context.data.evaluation || context.data;
+    
+    // 상세한 디버깅 로그 추가
+    logger.info('🔍 문서 평가 시작 - 전체 context:', {
+      contextKeys: Object.keys(context),
+      dataKeys: Object.keys(context.data || {}),
+      evaluationKeys: Object.keys(evaluationData || {}),
+      hasSubmittedDocuments: !!evaluationData.submittedDocuments,
+      submittedDocuments: evaluationData.submittedDocuments
+    });
+    
+    logger.info('🔍 문서 평가 상세 분석:', { 
+      evaluationDataStructure: JSON.stringify(evaluationData, null, 2),
+      submittedDocsType: typeof evaluationData.submittedDocuments,
+      submittedDocsValue: evaluationData.submittedDocuments 
+    });
+    
+    const result = {
+      score: 0,
+      details: {
+        submitted: false,
+        missing: [],
+        checked: [],
+        messages: []
+      }
+    };
+
+    // 프론트엔드에서 체크박스로 선택한 문서들
+    const submittedDocs = evaluationData.submittedDocuments || {};
+    
+    logger.info('🔍 제출된 문서 분석:', {
+      submittedDocs,
+      submittedDocsKeys: Object.keys(submittedDocs),
+      submittedDocsValues: Object.values(submittedDocs)
+    });
+    
+    // 필수 문서 목록과 점수
+    const documentScores = {
+      'employment_cert': 20,    // 재직증명서
+      'income_cert': 15,        // 소득금액증명원
+      'passport_copy': 15,      // 여권사본
+      'alien_reg': 15,          // 외국인등록증
+      'tax_payment': 15,        // 납세증명서
+      'health_insurance': 10,   // 건강보험납부확인서
+      'contract_copy': 10       // 고용계약서 사본
+    };
+
+    const documentNames = {
+      'employment_cert': '재직증명서',
+      'income_cert': '소득금액증명원',
+      'passport_copy': '여권사본',
+      'alien_reg': '외국인등록증',
+      'tax_payment': '납세증명서',
+      'health_insurance': '건강보험납부확인서',
+      'contract_copy': '고용계약서사본'
+    };
+
+    // 체크된 문서들의 점수 합산
+    let totalScore = 0;
+    
+    for (const [docId, score] of Object.entries(documentScores)) {
+      const isChecked = submittedDocs[docId];
+      logger.info(`📄 문서 체크: ${docId} = ${isChecked} (${typeof isChecked})`);
+      
+      if (isChecked) {
+        totalScore += score;
+        result.details.checked.push(docId);
+        result.details.messages.push(`${documentNames[docId]} 준비완료 (+${score}점)`);
+        logger.info(`✅ ${documentNames[docId]} 체크됨 - ${score}점 추가`);
+      } else {
+        result.details.missing.push(docId);
+        result.details.messages.push(`${documentNames[docId]} 준비필요 (${score}점)`);
+        logger.info(`❌ ${documentNames[docId]} 미체크 - 점수 없음`);
+      }
+    }
+
+    // 최소 필수 문서 확인
+    const essentialDocs = ['employment_cert', 'income_cert', 'passport_copy', 'alien_reg'];
+    const hasAllEssential = essentialDocs.every(doc => submittedDocs[doc]);
+    
+    result.details.submitted = hasAllEssential;
+    result.details.essentialComplete = hasAllEssential;
+    
+    // 필수 문서 완료 시 보너스
+    if (hasAllEssential) {
+      result.details.messages.push('필수 문서 모두 준비 완료');
+    } else {
+      result.details.messages.push('필수 문서 중 일부 미준비');
+    }
+
+    result.score = Math.min(100, totalScore);
+    
+    logger.info('📊 문서 평가 완료:', {
+      totalScore: result.score,
+      checkedCount: result.details.checked.length,
+      missingCount: result.details.missing.length,
+      essentialComplete: hasAllEssential,
+      checkedDocs: result.details.checked,
+      missingDocs: result.details.missing,
+      messages: result.details.messages
+    });
+    
     return result;
   }
 
@@ -242,8 +485,9 @@ class ExtensionStrategy extends BaseStrategy {
    * 연장 한도 확인
    */
   async checkExtensionLimit(context) {
-    const { visaType, data } = context;
-    const extensionCount = data.previousExtensions || 0;
+    const { visaType } = context;
+    const evaluationData = context.data.evaluation || context.data;
+    const extensionCount = evaluationData.previousExtensions || evaluationData.stayHistory?.previousExtensions || 0;
 
     // 비자별 최대 연장 횟수
     const limits = {
@@ -266,7 +510,8 @@ class ExtensionStrategy extends BaseStrategy {
     }
 
     // 총 체류 기간 확인
-    const totalStayYears = data.totalStayMonths / 12;
+    const totalStayMonths = evaluationData.totalStayMonths || evaluationData.stayHistory?.totalStayMonths || 0;
+    const totalStayYears = totalStayMonths / 12;
     const maxStayYears = {
       'E-1': 10,
       'E-2': 10,
@@ -312,6 +557,8 @@ class ExtensionStrategy extends BaseStrategy {
    * 학술 활동 실적 평가 (E-1) - 체류민원 매뉴얼 기반
    */
   async evaluateAcademicPerformance(performance) {
+    logger.info('E-1 활동 실적 평가 시작:', performance);
+    
     const result = {
       score: 0,
       details: {},
@@ -319,59 +566,86 @@ class ExtensionStrategy extends BaseStrategy {
     };
 
     // 1. 교육기관에서의 교수 활동 실적 (40점)
-    if (performance.coursesTaught) {
-      result.details.coursesTaught = performance.coursesTaught;
+    const coursesTaught = performance.coursesTaught || 0;
+    if (coursesTaught > 0) {
+      result.details.coursesTaught = coursesTaught;
       // 연간 강의 과목 수에 따른 점수
-      if (performance.coursesTaught >= 6) {
+      if (coursesTaught >= 6) {
         result.score += 40;
-      } else if (performance.coursesTaught >= 4) {
+        result.details.coursesMessage = `${coursesTaught}과목 담당 - 우수 (40점)`;
+      } else if (coursesTaught >= 4) {
         result.score += 30;
-      } else if (performance.coursesTaught >= 2) {
+        result.details.coursesMessage = `${coursesTaught}과목 담당 - 양호 (30점)`;
+      } else if (coursesTaught >= 2) {
         result.score += 20;
-      } else if (performance.coursesTaught >= 1) {
+        result.details.coursesMessage = `${coursesTaught}과목 담당 - 보통 (20점)`;
+      } else if (coursesTaught >= 1) {
         result.score += 10;
+        result.details.coursesMessage = `${coursesTaught}과목 담당 - 최소 (10점)`;
       }
+    } else {
+      result.details.coursesMessage = '담당 과목 없음 (0점)';
+      result.complianceIssues.push('교수 활동 실적 부족');
     }
 
     // 2. 연구 실적 (30점)
-    if (performance.publications) {
-      result.details.publications = performance.publications;
+    const publications = performance.publications || 0;
+    if (publications > 0) {
+      result.details.publications = publications;
       // 연간 논문 게재 수에 따른 점수
-      if (performance.publications >= 5) {
+      if (publications >= 5) {
         result.score += 30;
-      } else if (performance.publications >= 3) {
+        result.details.researchMessage = `논문 ${publications}편 - 탁월 (30점)`;
+      } else if (publications >= 3) {
         result.score += 25;
-      } else if (performance.publications >= 2) {
+        result.details.researchMessage = `논문 ${publications}편 - 우수 (25점)`;
+      } else if (publications >= 2) {
         result.score += 20;
-      } else if (performance.publications >= 1) {
+        result.details.researchMessage = `논문 ${publications}편 - 양호 (20점)`;
+      } else {
         result.score += 15;
+        result.details.researchMessage = `논문 ${publications}편 - 보통 (15점)`;
       }
+    } else {
+      result.details.researchMessage = '연구 실적 없음 (0점)';
     }
 
     // 3. 학생 지도 및 학술 활동 (20점)
-    if (performance.studentsSupervised) {
-      result.details.studentsSupervised = performance.studentsSupervised;
-      result.score += Math.min(performance.studentsSupervised * 3, 20);
+    const studentsSupervised = performance.studentsSupervised || 0;
+    if (studentsSupervised > 0) {
+      result.details.studentsSupervised = studentsSupervised;
+      const supervisionScore = Math.min(studentsSupervised * 3, 20);
+      result.score += supervisionScore;
+      result.details.supervisionMessage = `${studentsSupervised}명 지도 - ${supervisionScore}점`;
+    } else {
+      result.details.supervisionMessage = '학생 지도 없음 (0점)';
     }
 
     // 4. 출석률 및 근무 성실성 (10점) - 체류민원 매뉴얼 준수사항
-    if (performance.attendanceRate >= 0.95) {
+    const attendanceRate = performance.attendanceRate || 0.95;
+    if (attendanceRate >= 0.95) {
       result.score += 10;
-      result.details.attendanceNote = '우수한 출석률';
-    } else if (performance.attendanceRate >= 0.90) {
+      result.details.attendanceNote = `출석률 ${Math.round(attendanceRate * 100)}% - 우수 (10점)`;
+    } else if (attendanceRate >= 0.90) {
       result.score += 7;
-      result.details.attendanceNote = '양호한 출석률';
-    } else if (performance.attendanceRate >= 0.80) {
+      result.details.attendanceNote = `출석률 ${Math.round(attendanceRate * 100)}% - 양호 (7점)`;
+    } else if (attendanceRate >= 0.80) {
       result.score += 5;
-      result.details.attendanceNote = '보통 출석률';
+      result.details.attendanceNote = `출석률 ${Math.round(attendanceRate * 100)}% - 보통 (5점)`;
       result.complianceIssues.push('출석률 개선 필요');
     } else {
       result.score += 0;
-      result.details.attendanceNote = '출석률 미흡';
+      result.details.attendanceNote = `출석률 ${Math.round(attendanceRate * 100)}% - 미흡 (0점)`;
       result.complianceIssues.push('출석률 심각하게 미흡 - 연장 위험');
     }
 
-    // 5. 체류자격 준수 여부 확인
+    // 5. 추가 활동 점수 (보너스)
+    if (performance.extraActivities) {
+      result.score += 5;
+      result.details.extraMessage = '추가 학술 활동 참여 (+5점)';
+    }
+
+    // 6. 체류자격 준수 여부 확인
     if (performance.unauthorizedWork) {
       result.complianceIssues.push('체류자격외 활동 위반');
       result.score *= 0.5; // 50% 감점
@@ -383,6 +657,16 @@ class ExtensionStrategy extends BaseStrategy {
     }
 
     result.score = Math.max(0, Math.min(100, result.score));
+    
+    logger.info('E-1 활동 실적 평가 완료:', {
+      coursesTaught,
+      publications,
+      studentsSupervised,
+      attendanceRate,
+      finalScore: result.score,
+      details: result.details
+    });
+    
     return result;
   }
 

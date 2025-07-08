@@ -72,6 +72,49 @@ const E1SpecificFields = ({ applicationType }) => {
   const { register, watch, formState: { errors } } = useFormContext();
   const educationLevel = watch('academicInfo.education');
 
+  // 연장 신청인 경우 다른 필드 세트 사용
+  if (applicationType === 'EXTENSION') {
+    return (
+      <>
+        {/* 체류 이력 정보 */}
+        <FormSection 
+          title="체류 이력 정보" 
+          description="한국 체류 기간 동안의 이력을 입력해주세요"
+          required
+        >
+          <E1Fields.StayHistoryFields errors={errors} />
+        </FormSection>
+
+        {/* 활동 실적 */}
+        <FormSection 
+          title="활동 실적" 
+          description="체류 기간 동안의 주요 활동과 성과를 입력해주세요"
+          required
+        >
+          <E1Fields.PerformanceEvaluationFields errors={errors} />
+        </FormSection>
+
+        {/* 계약 연속성 */}
+        <FormSection 
+          title="계약 및 고용 정보" 
+          description="현재 고용 상태와 계약 정보를 입력해주세요"
+          required
+        >
+          <E1Fields.ContinuityFields errors={errors} />
+        </FormSection>
+
+        {/* 문서 준비도 */}
+        <FormSection 
+          title="제출 가능 서류 확인" 
+          description="현재 준비된 서류를 체크해주세요 (실제 업로드는 결제 후)"
+        >
+          <E1Fields.DocumentReadinessFields errors={errors} />
+        </FormSection>
+      </>
+    );
+  }
+
+  // 신규 신청인 경우 기존 필드 사용
   return (
     <>
       {/* 학력 및 경력 정보 */}

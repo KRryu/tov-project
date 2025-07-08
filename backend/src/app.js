@@ -75,6 +75,10 @@ logger.info('✅ 비자 API V2 라우트 설정 완료');
 const communityRoutes = require('./routes/community/communityRoutes');
 app.use('/api/community', communityRoutes);
 
+// Bridge Community
+const bridgeRoutes = require('./routes/bridge');
+app.use('/api/bridge', bridgeRoutes);
+
 // 기타 서비스들 (v1 API)
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const portfolioRoutes = require('./routes/portfolioRoutes');

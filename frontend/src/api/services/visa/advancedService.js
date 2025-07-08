@@ -18,11 +18,20 @@ class AdvancedVisaService {
    */
   async performPreScreening(visaType, applicationType, applicantData) {
     try {
+      // 전송 데이터 로깅
+      console.log('Pre-screening request data:', {
+        visaType,
+        applicationType,
+        applicantData
+      });
+      
       const response = await apiClient.post(`${this.baseURL}/pre-screening`, {
         visaType,
         applicationType,
         applicantData
       });
+      
+      console.log('Pre-screening response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Pre-screening error:', error);
@@ -179,11 +188,20 @@ class AdvancedVisaService {
    */
   async createApplication(visaType, applicationType, applicationData) {
     try {
+      // 전송 데이터 로깅
+      console.log('Create application request data:', {
+        visaType,
+        applicationType,
+        applicationData
+      });
+      
       const response = await apiClient.post(`${this.baseURL}/create-application`, {
         visaType,
         applicationType,
         applicationData
       });
+      
+      console.log('Create application response:', response.data);
       return response.data;
     } catch (error) {
       console.error('Application creation error:', error);
